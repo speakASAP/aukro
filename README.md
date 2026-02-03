@@ -11,7 +11,7 @@ The Aukro Service integrates with the Aukro marketplace platform, managing offer
 **Port Range**: 37xx
 
 | Service | Subdomain | Port |
-|---------|-----------|------|
+| ------- | --------- | ---- |
 | aukro-service | aukro.statex.cz | 3700 |
 | api-gateway | aukro.statex.cz | 3701 |
 | gateway-proxy | aukro.statex.cz | 3704 |
