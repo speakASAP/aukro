@@ -8,32 +8,32 @@ export class OffersController {
   constructor(private readonly offersService: OffersService) {}
 
   @Get()
-  async getOffers(@Query() query: any) {
+  async getOffers(@Query() query: any): Promise<any> {
     return this.offersService.findAll(query);
   }
 
   @Get(':id')
-  async getOffer(@Param('id') id: string) {
+  async getOffer(@Param('id') id: string): Promise<any> {
     return this.offersService.findOne(id);
   }
 
   @Post()
-  async createOffer(@Body() data: any) {
+  async createOffer(@Body() data: any): Promise<any> {
     return this.offersService.create(data);
   }
 
   @Post('sync')
-  async syncOffers(@Body() data?: any) {
+  async syncOffers(@Body() data?: any): Promise<any> {
     return this.offersService.syncFromCatalog(data);
   }
 
   @Put(':id')
-  async updateOffer(@Param('id') id: string, @Body() data: any) {
+  async updateOffer(@Param('id') id: string, @Body() data: any): Promise<any> {
     return this.offersService.update(id, data);
   }
 
   @Delete(':id')
-  async deleteOffer(@Param('id') id: string) {
+  async deleteOffer(@Param('id') id: string): Promise<any> {
     return this.offersService.delete(id);
   }
 }

@@ -8,22 +8,22 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
-  async getOrders(@Param() params: any) {
+  async getOrders(@Param() params: any): Promise<any> {
     return this.ordersService.findAll(params);
   }
 
   @Get(':id')
-  async getOrder(@Param('id') id: string) {
+  async getOrder(@Param('id') id: string): Promise<any> {
     return this.ordersService.findOne(id);
   }
 
   @Post()
-  async createOrder(@Body() data: any) {
+  async createOrder(@Body() data: any): Promise<any> {
     return this.ordersService.create(data);
   }
 
   @Post('webhook')
-  async webhook(@Body() data: any) {
+  async webhook(@Body() data: any): Promise<any> {
     return this.ordersService.handleWebhook(data);
   }
 }

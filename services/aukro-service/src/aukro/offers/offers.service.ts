@@ -15,7 +15,7 @@ export class OffersService {
     this.logger.setContext('OffersService');
   }
 
-  async findAll(query: any) {
+  async findAll(query: any): Promise<any> {
     return this.prisma.aukroOffer.findMany({
       where: {
         isActive: query.isActive !== undefined ? query.isActive === 'true' : undefined,
@@ -27,7 +27,7 @@ export class OffersService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<any> {
     const offer = await this.prisma.aukroOffer.findUnique({
       where: { id },
       include: { account: true },
@@ -50,20 +50,20 @@ export class OffersService {
     return offer;
   }
 
-  async create(data: any) {
+  async create(data: any): Promise<any> {
     return this.prisma.aukroOffer.create({
       data,
     });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: any): Promise<any> {
     return this.prisma.aukroOffer.update({
       where: { id },
       data,
     });
   }
 
-  async delete(id: string) {
+  async delete(id: string): Promise<any> {
     return this.prisma.aukroOffer.update({
       where: { id },
       data: { isActive: false },

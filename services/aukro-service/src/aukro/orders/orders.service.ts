@@ -14,7 +14,7 @@ export class OrdersService {
     this.logger.setContext('OrdersService');
   }
 
-  async findAll(query: any) {
+  async findAll(query: any): Promise<any> {
     return this.prisma.aukroOrder.findMany({
       where: {
         accountId: query.accountId,
@@ -27,14 +27,14 @@ export class OrdersService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<any> {
     return this.prisma.aukroOrder.findUnique({
       where: { id },
       include: { account: true },
     });
   }
 
-  async create(data: any) {
+  async create(data: any): Promise<any> {
     const order = await this.prisma.aukroOrder.create({
       data,
     });
@@ -90,7 +90,7 @@ export class OrdersService {
     return order;
   }
 
-  async handleWebhook(data: any) {
+  async handleWebhook(data: any): Promise<any> {
     try {
       this.logger.log('Received Aukro webhook', { data });
 
