@@ -12,8 +12,6 @@ services:
       - nginx-network
     depends_on:
       - aukro
-      - settings
-      - imports
     restart: unless-stopped
     # Note: nginx configuration uses dynamic DNS resolution (resolver + variables in proxy_pass)
     # This prevents stale IP caching when services restart and get new IP addresses
@@ -120,107 +118,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-  imports:
-    build:
-      context: .
-      dockerfile: services/imports/Dockerfile
-    container_name: aukro-service-imports-green
-    ports:
-      - "${IMPORT_SERVICE_PORT:-3702}:3702"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - SERVICE_NAME=${SERVICE_NAME:-aukro-service}
-      - IMPORT_SERVICE_PORT=${IMPORT_SERVICE_PORT:-3702}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
-      - LOGGING_SERVICE_URL=${LOGGING_SERVICE_URL}
-      - AUKRO_SERVICE_URL=${AUKRO_SERVICE_URL:-http://aukro:3700}
-      - IMPORT_CSV_MAX_SIZE=${IMPORT_CSV_MAX_SIZE:-104857600}
-      - IMPORT_CSV_BATCH_SIZE=${IMPORT_CSV_BATCH_SIZE:-50}
-      - NOTIFICATION_ORDER_CREATED=${NOTIFICATION_ORDER_CREATED:-true}
-      - NOTIFICATION_ORDER_UPDATED=${NOTIFICATION_ORDER_UPDATED:-true}
-      - NOTIFICATION_STOCK_LOW=${NOTIFICATION_STOCK_LOW:-true}
-      - NOTIFICATION_EMAIL_TO=${NOTIFICATION_EMAIL_TO}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME:-aukro}
-      - DATABASE_URL=${DATABASE_URL}
-    networks:
-      - nginx-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3702/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  settings:
-    build:
-      context: .
-      dockerfile: services/settings/Dockerfile
-    container_name: aukro-service-settings-green
-    ports:
-      - "${AUKRO_SETTINGS_SERVICE_PORT:-3703}:3703"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - SERVICE_NAME=${SERVICE_NAME:-aukro-service}
-      - AUKRO_SETTINGS_SERVICE_PORT=${AUKRO_SETTINGS_SERVICE_PORT:-3703}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
-      - LOGGING_SERVICE_URL=${LOGGING_SERVICE_URL}
-      - HTTP_TIMEOUT=${HTTP_TIMEOUT}
-      - AUTH_SERVICE_TIMEOUT=${AUTH_SERVICE_TIMEOUT}
-      - AUKRO_AUTH_URL=${AUKRO_AUTH_URL:-https://aukro.pl/auth/oauth/token}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME:-aukro}
-      - DATABASE_URL=${DATABASE_URL}
-    networks:
-      - nginx-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3703/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  frontend:
-    build:
-      context: .
-      dockerfile: services/frontend/Dockerfile
-      args:
-        - FRONTEND_API_URL=${FRONTEND_API_URL}
-    container_name: aukro-service-frontend-green
-    ports:
-      - "${AUKRO_FRONTEND_SERVICE_PORT:-3705}:3705"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-    networks:
-      - nginx-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3705/health"]
-      interval: 10s
-      timeout: 10s
-      retries: 2
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          memory: 50M
-          cpus: '0.25'
-        reservations:
-          memory: 20M
 
 networks:
   nginx-network:
