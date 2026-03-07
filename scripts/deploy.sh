@@ -120,6 +120,18 @@ echo -e "${GREEN}✅ Found nginx-microservice at: $NGINX_MICROSERVICE_PATH${NC}"
 echo -e "${GREEN}✅ Deploying service: $SERVICE_NAME${NC}"
 echo ""
 
+# Sync service registry from aukro-service (single source of truth for nginx config)
+REGISTRY_SOURCE="$PROJECT_ROOT/service-registry/aukro-service.json"
+REGISTRY_DEST="$NGINX_MICROSERVICE_PATH/service-registry/aukro-service.json"
+if [ -f "$REGISTRY_SOURCE" ]; then
+    mkdir -p "$(dirname "$REGISTRY_DEST")"
+    sed "s|__AUKRO_SERVICE_PATH__|$PROJECT_ROOT|g" "$REGISTRY_SOURCE" > "$REGISTRY_DEST"
+    echo -e "${GREEN}✅ Synced service registry to nginx-microservice${NC}"
+else
+    echo -e "${YELLOW}⚠️  Registry source not found: $REGISTRY_SOURCE (using existing registry if present)${NC}"
+fi
+echo ""
+
 # Timing and logging functions
 get_timestamp() {
     date '+%Y-%m-%d %H:%M:%S.%3N'

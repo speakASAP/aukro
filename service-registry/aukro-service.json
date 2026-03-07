@@ -1,0 +1,21 @@
+{
+  "service_name": "aukro-service",
+  "production_path": "__AUKRO_SERVICE_PATH__",
+  "domain": "aukro.alfares.cz",
+  "docker_compose_file": "docker-compose.blue.yml",
+  "docker_project_base": "aukro_service",
+  "services": {
+    "backend": {
+      "container_name_base": "aukro-service-gateway-proxy",
+      "container_port": 80,
+      "health_endpoint": "/health",
+      "health_timeout": 10,
+      "health_retries": 2,
+      "startup_time": 10
+    }
+  },
+  "shared_services": [
+    "postgres"
+  ],
+  "network": "nginx-network"
+}
