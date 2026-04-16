@@ -18,5 +18,5 @@ flipflop-service.
 
 ## SLA
 
-- Production: <https://aukro.statex.cz>
+- Production: <https://aukro.alfares.cz>
 - Events: subscribes to stock.updated

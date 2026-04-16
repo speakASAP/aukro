@@ -12,9 +12,9 @@ The Aukro Service integrates with the Aukro marketplace platform, managing offer
 
 | Service | Subdomain | Port |
 | ------- | --------- | ---- |
-| aukro-service | aukro.statex.cz | 3700 |
-| api-gateway | aukro.statex.cz | 3701 |
-| gateway-proxy | aukro.statex.cz | 3704 |
+| aukro-service | aukro.alfares.cz | 3700 |
+| api-gateway | aukro.alfares.cz | 3701 |
+| gateway-proxy | aukro.alfares.cz | 3704 |
 
 ## Features
 
@@ -42,7 +42,7 @@ Database: `aukro_db`
 
 ## API Endpoints
 
-Base URL: `https://aukro.statex.cz/api` (or `http://localhost:3701/api` in dev)
+Base URL: `https://aukro.alfares.cz/api` (or `http://localhost:3701/api` in dev)
 
 - `GET /api/accounts` - List Aukro accounts
 - `POST /api/accounts` - Add Aukro account
