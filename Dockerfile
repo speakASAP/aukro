@@ -13,4 +13,4 @@ RUN npm run build 2>/dev/null || true
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+CMD node dist/main.js
