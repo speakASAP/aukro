@@ -7,8 +7,10 @@ RUN npm install --prefer-offline --no-audit || npm ci
 
 COPY . .
 
-WORKDIR /app/services/aukro-service
+# Install root dependencies first (needed for file: symlinks like @aukro/shared)
 RUN npm install --prefer-offline --no-audit
+
+WORKDIR /app/services/aukro-service
 RUN npm run build
 
 EXPOSE 3000
