@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:24-slim
 
 WORKDIR /app
 
@@ -13,5 +13,5 @@ RUN npm run build 2>/dev/null || true
 
 EXPOSE 3000
 
-ENTRYPOINT []
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["node"]
+CMD ["dist/main.js"]

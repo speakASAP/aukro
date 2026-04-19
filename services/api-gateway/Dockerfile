@@ -1,5 +1,5 @@
 # Multi-stage build for API Gateway
-FROM node:20-alpine AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
 
@@ -37,7 +37,7 @@ RUN npm ci
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:24-slim
 
 # Install OpenSSL for Prisma query engine
 RUN apk add --no-cache openssl1.1-compat || apk add --no-cache openssl
