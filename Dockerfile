@@ -7,8 +7,11 @@ RUN npm install --prefer-offline --no-audit || npm ci
 
 COPY . .
 
-# Install root dependencies first (needed for file: symlinks like @aukro/shared)
+# Install root dependencies and build shared module
 RUN npm install --prefer-offline --no-audit
+
+# Build shared module first (required dependency for aukro-service)
+RUN cd /app/shared && npm run build
 
 WORKDIR /app/services/aukro-service
 RUN npm run build
