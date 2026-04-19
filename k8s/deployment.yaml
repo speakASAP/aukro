@@ -33,6 +33,12 @@ spec:
                 name: aukro-service-config
             - secretRef:
                 name: aukro-service-secret
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: DB_PASSWORD
           livenessProbe:
             httpGet:
               path: /health
