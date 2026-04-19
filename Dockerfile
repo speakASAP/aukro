@@ -8,10 +8,9 @@ RUN npm install --prefer-offline --no-audit || npm ci
 COPY . .
 
 WORKDIR /app/services/aukro-service
-RUN npm install --prefer-offline --no-audit 2>/dev/null || true
-RUN npm run build 2>/dev/null || true
+RUN npm install --prefer-offline --no-audit
+RUN npm run build
 
 EXPOSE 3000
 
-ENTRYPOINT ["node"]
-CMD ["dist/main.js"]
+CMD ["node", "dist/main.js"]
