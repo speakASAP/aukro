@@ -40,7 +40,7 @@ RUN npm run build
 FROM node:24-slim
 
 # Install OpenSSL for Prisma query engine
-RUN apk add --no-cache openssl1.1-compat || apk add --no-cache openssl
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
