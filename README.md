@@ -36,6 +36,7 @@ The Aukro Service integrates with the Aukro marketplace platform, managing offer
 Database: `aukro_db`
 
 **Tables**:
+
 - `AukroAccount` - Aukro account credentials
 - `AukroOffer` - Aukro offers linked to catalog products
 - `AukroOrder` - Orders received from Aukro
@@ -70,4 +71,3 @@ cd /home/statex/aukro-service
 ```bash
 npm run start:dev
 ```
-
