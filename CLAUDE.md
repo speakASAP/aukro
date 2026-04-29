@@ -1,8 +1,8 @@
 # CLAUDE.md (aukro-service)
 
-Ecosystem defaults: sibling [`../CLAUDE.md`](../CLAUDE.md) and [`../shared/docs/PROJECT_AGENT_DOCS_STANDARD.md`](../shared/docs/PROJECT_AGENT_DOCS_STANDARD.md).
+Ecosystem defaults: [`../CLAUDE.md`](../CLAUDE.md) · [`../shared/docs/PROJECT_AGENT_DOCS_STANDARD.md`](../shared/docs/PROJECT_AGENT_DOCS_STANDARD.md)
 
-Read this repo's `BUSINESS.md` → `SYSTEM.md` → `AGENTS.md` → `TASKS.md` → `STATE.json` first.
+Read order: `BUSINESS.md` → `SYSTEM.md` → `AGENTS.md` → `TASKS.md` → `STATE.json`
 
 ---
 
@@ -10,22 +10,20 @@ Read this repo's `BUSINESS.md` → `SYSTEM.md` → `AGENTS.md` → `TASKS.md` �
 
 **Purpose**: Aukro.cz marketplace integration — create/update offers, manage accounts, sync stock, receive and forward orders.  
 **Domain**: <https://aukro.alfares.cz>  
-**Stack**: NestJS · PostgreSQL
+**Stack**: NestJS · PostgreSQL · K8s (`statex-apps`)
 
-### Key constraints
-
-- Never create offers without validating product exists in catalog-microservice
-- Aukro API credentials in `.env` only
-- All received orders forwarded to orders-microservice — not stored locally
-- No direct stock writes — read from warehouse-microservice events only
-
-### Events consumed
-
-- `stock.updated` from warehouse-microservice → updates Aukro offer quantities
+→ Constraints, SLA: `BUSINESS.md`  
+→ Ports, integrations, secrets, deploy: `SYSTEM.md`
 
 ### Quick ops
 
 ```bash
-docker compose logs -f
+# Logs
+kubectl -n statex-apps logs -l app=aukro-service -f
+
+# Deploy
 ./scripts/deploy.sh
+
+# Rollout status
+kubectl -n statex-apps rollout status deployment/aukro-service
 ```

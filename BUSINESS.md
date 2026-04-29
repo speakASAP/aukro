@@ -1,5 +1,5 @@
 # Business: aukro-service
->
+
 > ⚠️ IMMUTABLE BY AI.
 
 ## Goal
@@ -9,7 +9,7 @@ Aukro.cz marketplace integration: create/update offers, manage accounts, sync st
 ## Constraints
 
 - AI must never create offers without catalog product validation
-- Aukro API credentials managed in .env only
+- Aukro API credentials in Vault (`secret/prod/aukro-service`)
 - Order data forwarded to orders-microservice
 
 ## Consumers

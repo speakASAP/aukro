@@ -1,73 +1,30 @@
-# Aukro Service
+# aukro-service
 
-Aukro.cz marketplace integration service for the unified e-commerce platform.
+Aukro.cz marketplace integration — offers, accounts, stock sync, order forwarding.
 
-## Overview
+**Domain**: <https://aukro.alfares.cz> · **Stack**: NestJS · PostgreSQL · K8s
 
-The Aukro Service integrates with the Aukro marketplace platform, managing offers, accounts, and orders. It uses central microservices (catalog, warehouse, order) as the single source of truth.
+## Docs
 
-## Port Configuration
+| File | Purpose |
+|------|---------|
+| [`BUSINESS.md`](BUSINESS.md) | Goals, constraints, SLA |
+| [`SYSTEM.md`](SYSTEM.md) | Ports, integrations, secrets, K8s deploy |
+| [`AGENTS.md`](AGENTS.md) | Agent boundaries |
+| [`TASKS.md`](TASKS.md) | Task backlog |
+| [`CLAUDE.md`](CLAUDE.md) | AI read order + quick ops |
 
-**Port Range**: 37xx
+## API (base: `https://aukro.alfares.cz/api`)
 
-| Service | Subdomain | Port |
-| ------- | --------- | ---- |
-| aukro-service | aukro.alfares.cz | 3700 |
-| api-gateway | aukro.alfares.cz | 3701 |
-| gateway-proxy | aukro.alfares.cz | 3704 |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/accounts` | List Aukro accounts |
+| POST | `/accounts` | Add account |
+| GET | `/offers` | List offers |
+| POST | `/offers` | Create offer |
+| POST | `/offers/sync` | Sync catalog → Aukro |
+| GET | `/orders` | List orders |
+| POST | `/orders/webhook` | Aukro order webhook |
 
-## Features
-
-- Create/update offers on Aukro from catalog products
-- Multi-account support
-- Subscribe to `stock.updated` events → update Aukro stock
-- Receive Aukro orders → forward to orders-microservice
-- Store Aukro-specific offer data
-
-## Architecture
-
-- Uses `catalog-microservice` (3200) for product data
-- Uses `warehouse-microservice` (3201) for stock levels
-- Uses `orders-microservice` (3203) for order processing
-- Subscribes to RabbitMQ `stock.updated` events
-
-## Database
-
-Database: `aukro_db`
-
-**Tables**:
-
-- `AukroAccount` - Aukro account credentials
-- `AukroOffer` - Aukro offers linked to catalog products
-- `AukroOrder` - Orders received from Aukro
-
-## API Endpoints
-
-Base URL: `https://aukro.alfares.cz/api` (or `http://localhost:3701/api` in dev)
-
-- `GET /api/accounts` - List Aukro accounts
-- `POST /api/accounts` - Add Aukro account
-- `GET /api/offers` - List Aukro offers
-- `POST /api/offers` - Create offer on Aukro
-- `POST /api/offers/sync` - Sync products from catalog to Aukro
-- `GET /api/orders` - List orders from Aukro
-- `POST /api/orders/webhook` - Webhook for Aukro order notifications
-
-## Environment Variables
-
-See `.env.example` for required environment variables.
-
-## Deployment
-
-Deploy using `nginx-microservice/scripts/blue-green/deploy-smart.sh`:
-
-```bash
-cd /home/statex/aukro-service
-./nginx-microservice/scripts/blue-green/deploy-smart.sh
-```
-
-## Development
-
-```bash
-npm run start:dev
-```
+→ Secrets: Vault `secret/prod/aukro-service` (see [`SYSTEM.md`](SYSTEM.md))  
+→ Ecosystem: [`../shared/ECOSYSTEM_MAP.md`](../shared/ECOSYSTEM_MAP.md)
