@@ -10,7 +10,8 @@ data:
   NODE_ENV: "production"
   SERVICE_NAME: "aukro-service"
   DOMAIN: "aukro.alfares.cz"
-  PORT: "3000"
+  PORT: "3700"
+  AUKRO_SERVICE_PORT: "3700"
   # Add environment variables from .env that are non-sensitive (no secrets, API keys, passwords)
   # Examples:
   # DATABASE_POOL_SIZE: "10"
