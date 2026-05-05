@@ -73,7 +73,7 @@ preflight_service_health() {
 
 
 echo -e "${BLUE}==========================================================${NC}"
-echo -e "${BLUE}  ${SERVICE_NAME} - Kubernetes Deployment${NC}"
+echo -e "${BLUE}  Aukro Service - Kubernetes Deployment${NC}"
 echo -e "${BLUE}==========================================================${NC}"
 
 if [ ! -d "$K8S_DIR" ]; then
@@ -116,5 +116,5 @@ log_info "[4/4] Current pods:"
 kubectl get pods -n "$NAMESPACE" -l app="$SERVICE_NAME"
 
 echo -e "${GREEN}==========================================================${NC}"
-echo -e "${GREEN}  Deployment successful${NC}"
+echo -e "${GREEN}  Aukro Service Deployment successful${NC}"
 echo -e "${GREEN}==========================================================${NC}"
