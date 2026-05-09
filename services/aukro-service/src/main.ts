@@ -9,7 +9,7 @@ import { join } from 'path';
 config({ path: join(process.cwd(), '../../.env') });
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
@@ -25,9 +25,13 @@ async function bootstrap() {
     }),
   );
 
+  app.setGlobalPrefix('aukro', {
+    exclude: [{ path: 'health', method: RequestMethod.GET }],
+  });
+
   const port = configService.get<string>('AUKRO_SERVICE_PORT') || '3700';
-  await app.listen(parseInt(port));
-  console.log(`Aukro Service is running on: http://localhost:${port}`);
+  await app.listen(parseInt(port, 10));
+  console.log(`Aukro service listening on http://localhost:${port}`);
 }
 
 bootstrap();
