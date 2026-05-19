@@ -36,11 +36,17 @@ spec:
                 secretKeyRef:
                   name: database-credentials
                   key: DB_PASSWORD
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3700
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               port: 3700
-            initialDelaySeconds: 15
             periodSeconds: 30
             failureThreshold: 3
             timeoutSeconds: 5
