@@ -24,3 +24,5 @@ Add Aukro capabilities only through feature docs, ADRs when needed and validated
 Improve observability, retries, contract tests and deployment evidence.
 ## Phase 4: Integration review
 Review contracts with catalog, warehouse and orders before major changes.
+## Phase 5: AI commerce platform
+Use 08_roadmap/AI_COMMERCE_ROADMAP.md and MS-003 to deliver compliant AI-assisted Aukro selling, human approval, ecosystem integrations and revenue optimization.

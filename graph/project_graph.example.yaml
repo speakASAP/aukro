@@ -26,6 +26,21 @@ nodes:
 - id: ADR-001
   type: ADR
   path: 07_decisions/ADR-001-markdown-git-source-of-truth.md
+- id: TASK-002
+  type: Task
+  path: 11_tasks/TASK-002-create-ai-commerce-roadmap.md
+- id: EP-TASK-002
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md
+- id: CP-TASK-002
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-002-create-ai-commerce-roadmap.md
+- id: PROMPT-TASK-003-aukro-compliance-policy
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-003-aukro-compliance-policy.md
+- id: VAL-TASK-002-create-ai-commerce-roadmap
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -51,3 +66,30 @@ edges:
 - from: VAL-TASK-001-ips-governance-baseline
   type: validates
   to: TASK-001
+- from: TASK-002
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-002
+  type: implements
+  to: FEAT-001
+- from: TASK-002
+  type: decomposes_into
+  to: EP-TASK-002
+- from: EP-TASK-002
+  type: derives_from
+  to: TASK-002
+- from: EP-TASK-002
+  type: generates
+  to: PROMPT-TASK-003-aukro-compliance-policy
+- from: EP-TASK-002
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-003-aukro-compliance-policy
+  type: derives_from
+  to: EP-TASK-002
+- from: PROMPT-TASK-003-aukro-compliance-policy
+  type: included_in_context
+  to: CP-TASK-002
+- from: VAL-TASK-002-create-ai-commerce-roadmap
+  type: validates
+  to: TASK-002
