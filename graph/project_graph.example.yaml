@@ -14,6 +14,9 @@ nodes:
 - id: FEAT-005
   type: Feature
   path: 10_features/FEAT-005-catalog-warehouse-publisher.md
+- id: FEAT-006
+  type: Feature
+  path: 10_features/FEAT-006-ai-human-workbench.md
 - id: FEAT-009
   type: Feature
   path: 10_features/FEAT-009-service-integration-clients.md
@@ -98,6 +101,24 @@ nodes:
 - id: VAL-TASK-005-catalog-sell-action-draft-model
   type: ValidationReport
   path: 12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md
+- id: TASK-006
+  type: Task
+  path: 11_tasks/TASK-006-ai-proposal-human-approval.md
+- id: EP-TASK-006
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-006-ai-proposal-human-approval.md
+- id: CP-TASK-006
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-006-ai-proposal-human-approval.md
+- id: PROMPT-TASK-006-ai-proposal-human-approval
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-006-ai-proposal-human-approval.md
+- id: GOAL-IMPACT-TASK-006
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-006.md
+- id: VAL-TASK-006-ai-proposal-human-approval
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-006-ai-proposal-human-approval.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -235,3 +256,34 @@ edges:
 - from: VAL-TASK-005-catalog-sell-action-draft-model
   type: validates
   to: TASK-005
+
+- from: TASK-006
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-006
+  type: implements
+  to: FEAT-006
+- from: TASK-006
+  type: decomposes_into
+  to: EP-TASK-006
+- from: TASK-006
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-006
+- from: EP-TASK-006
+  type: derives_from
+  to: TASK-006
+- from: EP-TASK-006
+  type: generates
+  to: PROMPT-TASK-006-ai-proposal-human-approval
+- from: EP-TASK-006
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-006-ai-proposal-human-approval
+  type: derives_from
+  to: EP-TASK-006
+- from: PROMPT-TASK-006-ai-proposal-human-approval
+  type: included_in_context
+  to: CP-TASK-006
+- from: VAL-TASK-006-ai-proposal-human-approval
+  type: validates
+  to: TASK-006

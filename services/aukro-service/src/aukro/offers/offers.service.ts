@@ -1,11 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService } from '@aukro/shared';
+import { AiClientService } from '@aukro/shared/clients/ai-client.service';
+import { NotificationsClientService } from '@aukro/shared/clients/notifications-client.service';
 import {
   CatalogDraftMetadata,
   CatalogDraftSourceSnapshot,
   CatalogSellActionRequest,
   CatalogSellActionResponse,
 } from './catalog-draft.types';
+import {
+  AiProposalFields,
+  AiProposalRecord,
+  AiProposalResponse,
+  CreateAiProposalRequest,
+  HumanReviewRecord,
+  ReviewAiProposalRequest,
+} from './ai-proposal.types';
 import { OfferPolicyService } from './policy/offer-policy.service';
 import {
   OfferPolicyEvaluation,
@@ -23,6 +34,8 @@ export class OffersService {
     private readonly catalogClient: CatalogClientService,
     private readonly warehouseClient: WarehouseClientService,
     private readonly offerPolicyService: OfferPolicyService,
+    private readonly aiClient: AiClientService,
+    private readonly notificationsClient: NotificationsClientService,
     loggerService: LoggerService,
   ) {
     this.logger = loggerService;
@@ -98,7 +111,6 @@ export class OffersService {
       evidence,
     });
   }
-
 
 
   async createFromCatalog(input: CatalogSellActionRequest): Promise<CatalogSellActionResponse> {
@@ -193,6 +205,171 @@ export class OffersService {
       sourceSnapshot,
       compliancePolicy,
       blockers: compliancePolicy.reasonCodes,
+    };
+  }
+
+
+
+  async createAiProposal(id: string, input: CreateAiProposalRequest): Promise<AiProposalResponse> {
+    if (!input?.requestedBy) {
+      throw new BadRequestException('requestedBy is required');
+    }
+
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    const target = input.target || 'listing';
+    const requestId = this.proposalRequestId(id, target);
+    const aiInput = this.buildAiProposalInput(offer);
+    const aiResult = target === 'policy-risk'
+      ? await this.aiClient.assessPolicyRisk(aiInput, {
+          correlationId: input.correlationId || requestId,
+          actorId: input.requestedBy,
+          accountId: offer.accountId,
+          offerId: offer.id,
+          productId: offer.productId,
+        })
+      : await this.aiClient.createListingProposal(aiInput, {
+          correlationId: input.correlationId || requestId,
+          actorId: input.requestedBy,
+          accountId: offer.accountId,
+          offerId: offer.id,
+          productId: offer.productId,
+        });
+
+    const now = new Date().toISOString();
+    const aiData = this.asRecord(aiResult.data);
+    const proposedFields = this.normalizeProposalFields(this.asRecord(aiData.proposedFields || aiData.proposal || aiData));
+    const confidence = aiData.confidence === undefined ? undefined : Number(aiData.confidence);
+    const riskLevel = aiData.riskLevel ? String(aiData.riskLevel) : undefined;
+    const blockers = this.aiProposalBlockers(aiResult.success, confidence, riskLevel, input.minConfidence ?? 0.7);
+    const proposal: AiProposalRecord = {
+      id: requestId,
+      requestId,
+      target,
+      status: blockers.length ? 'blocked' : 'pending_review',
+      requestedBy: input.requestedBy,
+      createdAt: now,
+      model: aiData.model ? String(aiData.model) : undefined,
+      modelVersion: aiData.modelVersion ? String(aiData.modelVersion) : undefined,
+      confidence,
+      riskLevel,
+      proposedFields,
+      reviewRequired: true,
+      blockers,
+      aiService: {
+        success: aiResult.success,
+        unavailable: aiResult.unavailable,
+        contractVersion: aiResult.contractVersion,
+        errorCode: aiResult.errorCode,
+      },
+    };
+
+    const rawData = this.appendAiProposal(offer.rawData, proposal);
+    await this.prisma.aukroOffer.update({
+      where: { id: offer.id },
+      data: { rawData },
+    });
+
+    const notification = await this.notificationsClient.sendAukroNotification({
+      type: 'aukro.ai.proposal.created',
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId,
+      proposalId: proposal.id,
+      requestedBy: input.requestedBy,
+      reviewRequired: true,
+      blockers,
+    }, {
+      correlationId: input.correlationId || requestId,
+      actorId: input.requestedBy,
+      accountId: offer.accountId,
+      offerId: offer.id,
+      productId: offer.productId,
+    });
+
+    return {
+      success: true,
+      offerId: offer.id,
+      proposal,
+      notification: {
+        success: notification.success,
+        unavailable: notification.unavailable,
+        errorCode: notification.errorCode,
+      },
+    };
+  }
+
+  async reviewAiProposal(id: string, proposalId: string, input: ReviewAiProposalRequest): Promise<any> {
+    if (!input?.actorId) {
+      throw new BadRequestException('actorId is required');
+    }
+    if (!['approve', 'reject'].includes(input.decision)) {
+      throw new BadRequestException('decision must be approve or reject');
+    }
+
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    const rawData = this.asRecord(offer.rawData);
+    const proposals = this.aiProposals(rawData);
+    const proposalIndex = proposals.findIndex((item) => item.id === proposalId);
+    if (proposalIndex < 0) {
+      throw new NotFoundException(`AI proposal ${proposalId} not found`);
+    }
+
+    const proposal = proposals[proposalIndex];
+    const approvedFields = input.decision === 'approve'
+      ? this.normalizeProposalFields(input.editedFields || proposal.proposedFields)
+      : {};
+    const diff = input.decision === 'approve' ? this.diffOfferFields(offer, approvedFields) : {};
+    const review: HumanReviewRecord = {
+      proposalId,
+      actorId: input.actorId,
+      decision: input.decision,
+      reviewedAt: new Date().toISOString(),
+      reason: input.reason,
+      editedFields: input.editedFields,
+      diff,
+    };
+
+    proposals[proposalIndex] = {
+      ...proposal,
+      status: input.decision === 'approve' ? 'approved' : 'rejected',
+    };
+    const nextRawData = {
+      ...rawData,
+      aiProposals: proposals,
+      humanReviews: [...this.humanReviews(rawData), review],
+    };
+
+    const data: Record<string, any> = { rawData: nextRawData };
+    if (input.decision === 'approve') {
+      if (approvedFields.title !== undefined) data.title = approvedFields.title;
+      if (approvedFields.description !== undefined) data.description = approvedFields.description;
+      if (approvedFields.price !== undefined) data.price = approvedFields.price;
+    }
+
+    const updatedOffer = await this.prisma.aukroOffer.update({
+      where: { id: offer.id },
+      data,
+    });
+
+    return {
+      success: true,
+      offer: updatedOffer,
+      proposal: proposals[proposalIndex],
+      review,
     };
   }
 
@@ -434,7 +611,6 @@ export class OffersService {
   }
 
 
-
   private buildCatalogDraftSnapshot(snapshot: {
     product: any;
     pricing?: any;
@@ -461,6 +637,86 @@ export class OffersService {
       ...this.asRecord(rawData),
       draft,
     };
+  }
+
+
+
+  private proposalRequestId(offerId: string, target: string): string {
+    const hash = createHash('sha256').update(`${offerId}:${target}:v1`).digest('hex').slice(0, 16);
+    return `ai-${target}-${hash}`;
+  }
+
+  private buildAiProposalInput(offer: any): Record<string, any> {
+    const rawData = this.asRecord(offer.rawData);
+    const draft = this.asRecord(rawData.draft);
+    return {
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId,
+      currentFields: {
+        title: offer.title,
+        description: offer.description,
+        price: Number(offer.price),
+        stockQuantity: offer.stockQuantity,
+      },
+      draftSourceSnapshot: this.asRecord(draft.sourceSnapshot),
+      policyReasonCodes: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
+    };
+  }
+
+  private normalizeProposalFields(fields: Record<string, any>): AiProposalFields {
+    const price = fields.price === undefined ? undefined : Number(fields.price);
+    return {
+      title: fields.title === undefined ? undefined : String(fields.title),
+      description: fields.description === undefined ? undefined : String(fields.description),
+      categoryId: fields.categoryId === undefined ? undefined : String(fields.categoryId),
+      parameters: this.asRecord(fields.parameters),
+      price: Number.isFinite(price) ? price : undefined,
+    };
+  }
+
+  private aiProposalBlockers(success: boolean, confidence: number | undefined, riskLevel: string | undefined, minConfidence: number): string[] {
+    const blockers: string[] = [];
+    if (!success) {
+      blockers.push('AI_SERVICE_UNAVAILABLE');
+    }
+    if (confidence !== undefined && confidence < minConfidence) {
+      blockers.push('AI_CONFIDENCE_LOW');
+    }
+    if (riskLevel && !['low', 'none'].includes(riskLevel.toLowerCase())) {
+      blockers.push('AI_RISK_REVIEW_REQUIRED');
+    }
+    return blockers;
+  }
+
+  private appendAiProposal(rawData: any, proposal: AiProposalRecord): Record<string, any> {
+    const raw = this.asRecord(rawData);
+    return {
+      ...raw,
+      aiProposals: [...this.aiProposals(raw), proposal],
+    };
+  }
+
+  private aiProposals(rawData: any): AiProposalRecord[] {
+    const raw = this.asRecord(rawData);
+    return Array.isArray(raw.aiProposals) ? raw.aiProposals : [];
+  }
+
+  private humanReviews(rawData: any): HumanReviewRecord[] {
+    const raw = this.asRecord(rawData);
+    return Array.isArray(raw.humanReviews) ? raw.humanReviews : [];
+  }
+
+  private diffOfferFields(offer: any, fields: AiProposalFields): Record<string, { before: any; after: any }> {
+    const diff: Record<string, { before: any; after: any }> = {};
+    for (const key of ['title', 'description', 'price'] as const) {
+      if (fields[key] === undefined) continue;
+      const before = key === 'price' ? Number(offer[key]) : offer[key];
+      if (before !== fields[key]) {
+        diff[key] = { before, after: fields[key] };
+      }
+    }
+    return diff;
   }
 
   private rawPolicyEvidence(rawData: any): OfferPolicyEvidence {

@@ -7,7 +7,7 @@ const { OfferPolicyService } = require('./policy/offer-policy.service');
 
 const fresh = '2026-06-13T12:00:00.000Z';
 
-function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any } = {}) {
+function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -51,12 +51,37 @@ function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any
     getProductMedia: async () => media,
   };
   const warehouseClient = { getTotalAvailable: async () => stock };
+  const aiClient = {
+    createListingProposal: async () => overrides.aiResult || {
+      success: true,
+      service: 'ai-microservice',
+      contractVersion: 'aukro.ai.listing-proposal.v1',
+      data: {
+        model: 'synthetic-model',
+        modelVersion: '2026-06-13',
+        confidence: 0.91,
+        riskLevel: 'low',
+        proposedFields: { title: 'AI improved title', description: 'AI improved description', price: 209 },
+      },
+    },
+    assessPolicyRisk: async () => overrides.aiResult || {
+      success: true,
+      service: 'ai-microservice',
+      contractVersion: 'aukro.ai.policy-risk.v1',
+      data: { confidence: 0.9, riskLevel: 'low', proposedFields: {} },
+    },
+  };
+  const notificationsClient = {
+    sendAukroNotification: async () => ({ success: true, service: 'notifications-microservice', contractVersion: 'aukro.notifications.send.v1' }),
+  };
   const logger = { setContext() {}, log() {}, warn() {}, error() {} };
   const service = new OffersService(
     prisma as any,
     catalogClient as any,
     warehouseClient as any,
     new OfferPolicyService(),
+    aiClient as any,
+    notificationsClient as any,
     logger as any,
   );
 
@@ -100,6 +125,39 @@ async function run() {
   assert.ok(blocked.blockers.includes('PRICE_POLICY_FAILED'));
   assert.ok(blocked.blockers.includes('MEDIA_READINESS_FAILED'));
   assert.ok(blocked.blockers.includes('AI_RISK_MISSING'));
+
+  const proposalHarness = createHarness({ existingOffer: created.offer });
+  const proposalResponse = await proposalHarness.service.createAiProposal(created.offer.id, {
+    requestedBy: 'operator:synthetic',
+  });
+  assert.equal(proposalResponse.proposal.status, 'pending_review');
+  assert.equal(proposalResponse.proposal.reviewRequired, true);
+  assert.equal(proposalResponse.proposal.proposedFields.title, 'AI improved title');
+
+  const approved = await proposalHarness.service.reviewAiProposal(created.offer.id, proposalResponse.proposal.id, {
+    actorId: 'approver:synthetic',
+    decision: 'approve',
+    editedFields: { title: 'Human approved title', price: 215 },
+  });
+  assert.equal(approved.proposal.status, 'approved');
+  assert.equal(approved.offer.title, 'Human approved title');
+  assert.equal(approved.review.diff.title.before, 'Synthetic Aukro Product');
+  assert.equal(approved.review.diff.title.after, 'Human approved title');
+
+  const rejectHarness = createHarness({ existingOffer: created.offer });
+  const risky = await rejectHarness.service.createAiProposal(created.offer.id, {
+    requestedBy: 'operator:synthetic',
+    minConfidence: 0.95,
+  });
+  assert.equal(risky.proposal.status, 'blocked');
+  assert.ok(risky.proposal.blockers.includes('AI_CONFIDENCE_LOW'));
+  const rejected = await rejectHarness.service.reviewAiProposal(created.offer.id, risky.proposal.id, {
+    actorId: 'approver:synthetic',
+    decision: 'reject',
+    reason: 'Synthetic rejection',
+  });
+  assert.equal(rejected.proposal.status, 'rejected');
+  assert.deepEqual(rejected.review.diff, {});
 }
 
 run();

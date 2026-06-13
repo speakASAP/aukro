@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { OffersService } from './offers.service';
 import { JwtAuthGuard } from '@aukro/shared';
 import { CatalogSellActionRequest } from './catalog-draft.types';
+import { CreateAiProposalRequest, ReviewAiProposalRequest } from './ai-proposal.types';
 import { OfferPolicyInput } from './policy/offer-policy.types';
 
 @Controller('offers')
@@ -32,6 +33,20 @@ export class OffersController {
   @Post('from-catalog')
   async createFromCatalog(@Body() data: CatalogSellActionRequest): Promise<any> {
     return this.offersService.createFromCatalog(data);
+  }
+
+  @Post(':id/ai-proposals')
+  async createAiProposal(@Param('id') id: string, @Body() data: CreateAiProposalRequest): Promise<any> {
+    return this.offersService.createAiProposal(id, data);
+  }
+
+  @Post(':id/ai-proposals/:proposalId/review')
+  async reviewAiProposal(
+    @Param('id') id: string,
+    @Param('proposalId') proposalId: string,
+    @Body() data: ReviewAiProposalRequest,
+  ): Promise<any> {
+    return this.offersService.reviewAiProposal(id, proposalId, data);
   }
 
   @Post(':id/policy-check')

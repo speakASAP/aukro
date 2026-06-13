@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-06-13T20:26:20Z",
+  "created_at": "2026-06-13T20:41:41Z",
   "gate": "deployment_readiness",
   "next_step": "ready_for_deployment_review",
   "pre_coding_gate": {
@@ -19,20 +19,21 @@
     "score": 100,
     "status": "PASS"
   },
-  "target": "TASK-001",
+  "target": "TASK-006",
   "unresolved_markers": [],
   "validation_reports": {
     "matching_reports": [
-      "12_validation/VAL-TASK-001-ips-governance-baseline.md"
+      "12_validation/VAL-TASK-006-ai-proposal-human-approval.md"
     ],
     "reports": [
       "12_validation/VAL-TASK-001-ips-governance-baseline.md",
       "12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
       "12_validation/VAL-TASK-003-aukro-compliance-policy.md",
       "12_validation/VAL-TASK-004-service-integration-clients.md",
-      "12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md"
+      "12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md",
+      "12_validation/VAL-TASK-006-ai-proposal-human-approval.md"
     ],
     "status": "pass",
-    "target": "TASK-001"
+    "target": "TASK-006"
   }
 }
