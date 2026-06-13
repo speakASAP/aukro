@@ -3,6 +3,7 @@ import { OffersService } from './offers.service';
 import { JwtAuthGuard } from '@aukro/shared';
 import { CatalogSellActionRequest } from './catalog-draft.types';
 import { CreateAiProposalRequest, ReviewAiProposalRequest } from './ai-proposal.types';
+import { EnqueuePublishRequest, RecordReconciliationRequest } from './publish-observability.types';
 import { OfferPolicyInput } from './policy/offer-policy.types';
 
 @Controller('offers')
@@ -47,6 +48,16 @@ export class OffersController {
     @Body() data: ReviewAiProposalRequest,
   ): Promise<any> {
     return this.offersService.reviewAiProposal(id, proposalId, data);
+  }
+
+  @Post(':id/enqueue-publish')
+  async enqueuePublish(@Param('id') id: string, @Body() data: EnqueuePublishRequest): Promise<any> {
+    return this.offersService.enqueuePublish(id, data);
+  }
+
+  @Post(':id/reconciliation')
+  async recordReconciliation(@Param('id') id: string, @Body() data: RecordReconciliationRequest): Promise<any> {
+    return this.offersService.recordReconciliation(id, data);
   }
 
   @Post(':id/policy-check')

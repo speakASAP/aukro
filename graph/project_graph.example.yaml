@@ -119,6 +119,27 @@ nodes:
 - id: VAL-TASK-006-ai-proposal-human-approval
   type: ValidationReport
   path: 12_validation/VAL-TASK-006-ai-proposal-human-approval.md
+- id: FEAT-008
+  type: Feature
+  path: 10_features/FEAT-008-observability-reconciliation.md
+- id: TASK-007
+  type: Task
+  path: 11_tasks/TASK-007-publish-queue-reconciliation.md
+- id: EP-TASK-007
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md
+- id: CP-TASK-007
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-007-publish-queue-reconciliation.md
+- id: PROMPT-TASK-007-publish-queue-reconciliation
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-007-publish-queue-reconciliation.md
+- id: GOAL-IMPACT-TASK-007
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-007.md
+- id: VAL-TASK-007-publish-queue-reconciliation
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-007-publish-queue-reconciliation.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -287,3 +308,34 @@ edges:
 - from: VAL-TASK-006-ai-proposal-human-approval
   type: validates
   to: TASK-006
+
+- from: TASK-007
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-007
+  type: implements
+  to: FEAT-008
+- from: TASK-007
+  type: decomposes_into
+  to: EP-TASK-007
+- from: TASK-007
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-007
+- from: EP-TASK-007
+  type: derives_from
+  to: TASK-007
+- from: EP-TASK-007
+  type: generates
+  to: PROMPT-TASK-007-publish-queue-reconciliation
+- from: EP-TASK-007
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-007-publish-queue-reconciliation
+  type: derives_from
+  to: EP-TASK-007
+- from: PROMPT-TASK-007-publish-queue-reconciliation
+  type: included_in_context
+  to: CP-TASK-007
+- from: VAL-TASK-007-publish-queue-reconciliation
+  type: validates
+  to: TASK-007

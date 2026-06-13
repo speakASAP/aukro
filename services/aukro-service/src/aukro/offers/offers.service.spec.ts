@@ -144,6 +144,50 @@ async function run() {
   assert.equal(approved.review.diff.title.before, 'Synthetic Aukro Product');
   assert.equal(approved.review.diff.title.after, 'Human approved title');
 
+  const queued = await proposalHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-synthetic-1',
+    rateLimitRemaining: 1,
+  });
+  assert.equal(queued.action, 'created');
+  assert.equal(queued.attempt.status, 'queued');
+  assert.equal(queued.compliancePolicy.allowed, true);
+  assert.equal(queued.attempt.mutation.enabled, false);
+  assert.equal(queued.attempt.idempotencyKey, 'publish-synthetic-1');
+  assert.equal(queued.queue.queuedCount, 1);
+
+  const replayed = await proposalHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-synthetic-1',
+    rateLimitRemaining: 1,
+  });
+  assert.equal(replayed.action, 'reused');
+  assert.equal(replayed.attempt.id, queued.attempt.id);
+  assert.equal(replayed.queue.attempts.length, 1);
+
+  const blockedPublishHarness = createHarness({ existingOffer: created.offer });
+  const blockedPublish = await blockedPublishHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-blocked-1',
+  });
+  assert.equal(blockedPublish.attempt.status, 'blocked');
+  assert.equal(blockedPublish.compliancePolicy.allowed, false);
+  assert.ok(blockedPublish.blockers.includes('HUMAN_APPROVAL_MISSING'));
+  assert.ok(blockedPublish.blockers.includes('RATE_LIMIT_READINESS_MISSING'));
+  assert.equal(blockedPublish.attempt.mutation.enabled, false);
+
+  const reconciliation = await proposalHarness.service.recordReconciliation(created.offer.id, {
+    actorId: 'ops:synthetic',
+    source: 'synthetic-test',
+    marketplaceSnapshot: { stockQuantity: 1, price: 999, status: 'active' },
+  });
+  assert.equal(reconciliation.report.status, 'drift_detected');
+  assert.ok(reconciliation.report.drift.some((item: any) => item.type === 'stock'));
+  assert.ok(reconciliation.report.drift.some((item: any) => item.type === 'price'));
+  assert.ok(reconciliation.report.drift.some((item: any) => item.type === 'status'));
+  assert.equal(reconciliation.report.mutation.enabled, false);
+  assert.equal(reconciliation.reconciliation.driftCount, 1);
+
   const rejectHarness = createHarness({ existingOffer: created.offer });
   const risky = await rejectHarness.service.createAiProposal(created.offer.id, {
     requestedBy: 'operator:synthetic',

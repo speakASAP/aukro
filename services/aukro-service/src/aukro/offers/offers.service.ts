@@ -17,6 +17,19 @@ import {
   HumanReviewRecord,
   ReviewAiProposalRequest,
 } from './ai-proposal.types';
+import {
+  EnqueuePublishRequest,
+  EnqueuePublishResponse,
+  MarketplaceReconciliationSnapshot,
+  PublishAttemptRecord,
+  PublishQueueMetadata,
+  PublishRateLimitSnapshot,
+  RecordReconciliationRequest,
+  RecordReconciliationResponse,
+  ReconciliationDrift,
+  ReconciliationMetadata,
+  ReconciliationReportRecord,
+} from './publish-observability.types';
 import { OfferPolicyService } from './policy/offer-policy.service';
 import {
   OfferPolicyEvaluation,
@@ -373,6 +386,141 @@ export class OffersService {
     };
   }
 
+
+  async enqueuePublish(id: string, input: EnqueuePublishRequest): Promise<EnqueuePublishResponse> {
+    if (!input?.actorId) {
+      throw new BadRequestException('actorId is required');
+    }
+
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    const rawData = this.asRecord(offer.rawData);
+    const requestedKey = input.idempotencyKey?.trim();
+    const idempotencyKey = requestedKey || this.publishIdempotencyKey(offer);
+    const existingQueue = this.publishQueue(rawData, offer.accountId);
+    const existingAttempt = existingQueue.attempts.find((attempt) => attempt.idempotencyKey === idempotencyKey);
+    if (existingAttempt) {
+      return {
+        success: true,
+        action: 'reused',
+        attempt: existingAttempt,
+        queue: existingQueue,
+        compliancePolicy: existingAttempt.policySnapshot,
+        blockers: existingAttempt.blockers,
+      };
+    }
+
+    const requestedAt = input.requestedAt || new Date().toISOString();
+    const policyEvidence = await this.collectPublishPolicyEvidence(offer, input, idempotencyKey, requestedAt);
+    const compliancePolicy = this.offerPolicyService.evaluate({
+      mode: 'publish',
+      evidence: policyEvidence,
+      now: requestedAt,
+    });
+    const status = compliancePolicy.allowed ? 'queued' : 'blocked';
+    const queuedCount = existingQueue.attempts.filter((attempt) => attempt.status === 'queued').length + (status === 'queued' ? 1 : 0);
+    const blockedCount = existingQueue.attempts.filter((attempt) => attempt.status === 'blocked').length + (status === 'blocked' ? 1 : 0);
+    const attempt: PublishAttemptRecord = {
+      id: `pub-${this.shortHash(idempotencyKey)}`,
+      idempotencyKey,
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId || undefined,
+      actorId: input.actorId,
+      requestedAt,
+      status,
+      blockers: compliancePolicy.reasonCodes,
+      policyEvidence,
+      policySnapshot: compliancePolicy,
+      queue: {
+        accountId: offer.accountId,
+        position: status === 'queued' ? queuedCount : 0,
+        queuedCount,
+        blockedCount,
+        rateLimit: this.rateLimitSnapshot(policyEvidence, input),
+      },
+      mutation: {
+        enabled: false,
+        reason: 'TASK_007_RECORD_ONLY',
+      },
+      correlationId: input.correlationId,
+    };
+    const queue = this.buildPublishQueueMetadata(offer, [...existingQueue.attempts, attempt], requestedAt, status, attempt.queue.rateLimit);
+
+    await this.prisma.aukroOffer.update({
+      where: { id: offer.id },
+      data: { rawData: { ...rawData, publishQueue: queue } },
+    });
+
+    return {
+      success: true,
+      action: 'created',
+      attempt,
+      queue,
+      compliancePolicy,
+      blockers: compliancePolicy.reasonCodes,
+    };
+  }
+
+  async recordReconciliation(id: string, input: RecordReconciliationRequest): Promise<RecordReconciliationResponse> {
+    if (!input?.actorId) {
+      throw new BadRequestException('actorId is required');
+    }
+
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    const recordedAt = new Date().toISOString();
+    const observedAt = input.observedAt || recordedAt;
+    const marketplaceSnapshot = this.normalizeMarketplaceSnapshot(input.marketplaceSnapshot || {});
+    const internalSnapshot = await this.buildInternalReconciliationSnapshot(offer, input);
+    const drift = this.reconciliationDrift(internalSnapshot, marketplaceSnapshot);
+    const status = drift.length ? 'drift_detected' : 'aligned';
+    const report: ReconciliationReportRecord = {
+      id: `recon-${this.shortHash(`${offer.id}:${observedAt}:${input.source || 'manual'}:${JSON.stringify(marketplaceSnapshot)}`)}`,
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId || undefined,
+      actorId: input.actorId,
+      source: input.source || 'manual',
+      observedAt,
+      recordedAt,
+      status,
+      internalSnapshot,
+      marketplaceSnapshot,
+      drift,
+      mutation: {
+        enabled: false,
+        reason: 'RECONCILIATION_RECORD_ONLY',
+      },
+      correlationId: input.correlationId,
+    };
+
+    const rawData = this.asRecord(offer.rawData);
+    const reconciliation = this.appendReconciliationReport(rawData, report);
+    await this.prisma.aukroOffer.update({
+      where: { id: offer.id },
+      data: { rawData: { ...rawData, reconciliation } },
+    });
+
+    return {
+      success: true,
+      report,
+      reconciliation,
+    };
+  }
+
   async syncFromCatalog(data?: { accountId?: string; limit?: number; activeOnly?: boolean; policyEvidence?: OfferPolicyEvidence }) {
     try {
       const accountId = data?.accountId;
@@ -719,9 +867,212 @@ export class OffersService {
     return diff;
   }
 
+
+  private async collectPublishPolicyEvidence(
+    offer: any,
+    input: EnqueuePublishRequest,
+    idempotencyKey: string,
+    checkedAt: string,
+  ): Promise<OfferPolicyEvidence> {
+    const evidence = await this.collectOfferPolicyEvidence(offer.id, input.policyEvidence);
+    const generated: OfferPolicyEvidence = {};
+    const approval = this.latestApprovedHumanReview(offer.rawData);
+
+    if (!evidence.humanApproved && approval) {
+      generated.humanApproved = {
+        passed: true,
+        checkedAt: approval.reviewedAt || checkedAt,
+        source: 'aukro-service',
+        actorId: approval.actorId,
+      };
+    }
+
+    if (!evidence.rateLimitReady && input.rateLimitRemaining !== undefined) {
+      const remaining = Number(input.rateLimitRemaining);
+      generated.rateLimitReady = {
+        ...this.flag(Number.isFinite(remaining) && remaining > 0, checkedAt, 'aukro-service'),
+        remaining,
+        resetAt: input.rateLimitResetAt,
+        hint: remaining > 0 ? undefined : 'No publish rate-limit budget is available for this account.',
+      } as PolicyEvidenceFlag;
+    }
+
+    if (!evidence.idempotencyReady) {
+      generated.idempotencyReady = {
+        ...this.flag(Boolean(idempotencyKey), checkedAt, 'aukro-service'),
+        idempotencyKey,
+      };
+    }
+
+    return this.mergePolicyEvidence(evidence, generated);
+  }
+
+  private publishIdempotencyKey(offer: any): string {
+    return `publish-${this.shortHash(`${offer.id}:publish:v1`)}`;
+  }
+
+  private publishQueue(rawData: any, accountId: string): PublishQueueMetadata {
+    const raw = this.asRecord(rawData);
+    const queue = this.asRecord(raw.publishQueue);
+    const attempts = Array.isArray(queue.attempts) ? queue.attempts as PublishAttemptRecord[] : [];
+    const queuedCount = attempts.filter((attempt) => attempt.status === 'queued').length;
+    const blockedCount = attempts.filter((attempt) => attempt.status === 'blocked').length;
+    return {
+      version: 1,
+      accountId: String(queue.accountId || accountId),
+      status: (queue.status as PublishQueueMetadata['status']) || (queuedCount ? 'queued' : blockedCount ? 'blocked' : 'idle'),
+      attempts,
+      queuedCount,
+      blockedCount,
+      lastAttemptAt: queue.lastAttemptAt ? String(queue.lastAttemptAt) : undefined,
+      lastQueuedAt: queue.lastQueuedAt ? String(queue.lastQueuedAt) : undefined,
+      lastBlockedAt: queue.lastBlockedAt ? String(queue.lastBlockedAt) : undefined,
+      rateLimit: this.asRecord(queue.rateLimit) as PublishRateLimitSnapshot,
+    };
+  }
+
+  private buildPublishQueueMetadata(
+    offer: any,
+    attempts: PublishAttemptRecord[],
+    attemptedAt: string,
+    attemptStatus: PublishAttemptRecord['status'],
+    rateLimit: PublishRateLimitSnapshot,
+  ): PublishQueueMetadata {
+    const queuedCount = attempts.filter((attempt) => attempt.status === 'queued').length;
+    const blockedCount = attempts.filter((attempt) => attempt.status === 'blocked').length;
+    return {
+      version: 1,
+      accountId: offer.accountId,
+      status: queuedCount ? 'queued' : blockedCount ? 'blocked' : 'idle',
+      attempts,
+      queuedCount,
+      blockedCount,
+      lastAttemptAt: attemptedAt,
+      lastQueuedAt: attemptStatus === 'queued' ? attemptedAt : undefined,
+      lastBlockedAt: attemptStatus === 'blocked' ? attemptedAt : undefined,
+      rateLimit,
+    };
+  }
+
+  private rateLimitSnapshot(evidence: OfferPolicyEvidence, input?: EnqueuePublishRequest): PublishRateLimitSnapshot {
+    const remaining = input?.rateLimitRemaining === undefined ? undefined : Number(input.rateLimitRemaining);
+    return {
+      ready: evidence.rateLimitReady?.passed === true,
+      checkedAt: evidence.rateLimitReady?.checkedAt,
+      remaining: Number.isFinite(remaining) ? remaining : undefined,
+      resetAt: input?.rateLimitResetAt,
+    };
+  }
+
+  private latestApprovedHumanReview(rawData: any): HumanReviewRecord | undefined {
+    return this.humanReviews(rawData)
+      .filter((review) => review.decision === 'approve')
+      .sort((left, right) => String(right.reviewedAt).localeCompare(String(left.reviewedAt)))[0];
+  }
+
+  private async buildInternalReconciliationSnapshot(
+    offer: any,
+    input: RecordReconciliationRequest,
+  ): Promise<ReconciliationReportRecord['internalSnapshot']> {
+    let stockQuantity = input.warehouseStockQuantity;
+    let price = this.numberOrUndefined(input.catalogPrice);
+
+    if (stockQuantity === undefined && offer.productId) {
+      try {
+        stockQuantity = await this.warehouseClient.getTotalAvailable(offer.productId);
+      } catch (error: any) {
+        this.logger.warn(`Reconciliation stock lookup failed for offer ${offer.id}: ${error.message}`);
+      }
+    }
+
+    if (price === undefined && offer.productId) {
+      try {
+        const pricing = await this.catalogClient.getProductPricing(offer.productId);
+        price = this.numberOrUndefined(pricing?.basePrice ?? pricing?.price);
+      } catch (error: any) {
+        this.logger.warn(`Reconciliation pricing lookup failed for offer ${offer.id}: ${error.message}`);
+      }
+    }
+
+    return {
+      stockQuantity: stockQuantity === undefined ? Number(offer.stockQuantity || 0) : Number(stockQuantity),
+      price: price === undefined ? Number(offer.price || 0) : price,
+      status: offer.isActive ? 'active' : 'inactive',
+    };
+  }
+
+  private normalizeMarketplaceSnapshot(snapshot: MarketplaceReconciliationSnapshot): MarketplaceReconciliationSnapshot {
+    return {
+      aukroOfferId: snapshot.aukroOfferId ? String(snapshot.aukroOfferId) : undefined,
+      status: snapshot.status ? String(snapshot.status) : snapshot.isActive === undefined ? undefined : (snapshot.isActive ? 'active' : 'inactive'),
+      isActive: snapshot.isActive,
+      stockQuantity: this.numberOrUndefined(snapshot.stockQuantity),
+      price: this.numberOrUndefined(snapshot.price),
+      currency: snapshot.currency ? String(snapshot.currency) : undefined,
+    };
+  }
+
+  private reconciliationDrift(
+    internal: ReconciliationReportRecord['internalSnapshot'],
+    marketplace: MarketplaceReconciliationSnapshot,
+  ): ReconciliationDrift[] {
+    const drift: ReconciliationDrift[] = [];
+    if (marketplace.stockQuantity !== undefined && internal.stockQuantity !== marketplace.stockQuantity) {
+      drift.push({ type: 'stock', internal: internal.stockQuantity, marketplace: marketplace.stockQuantity, severity: 'warning' });
+    }
+    if (marketplace.price !== undefined && internal.price !== Number(marketplace.price)) {
+      drift.push({ type: 'price', internal: internal.price, marketplace: Number(marketplace.price), severity: 'warning' });
+    }
+    if (marketplace.status !== undefined && internal.status !== marketplace.status) {
+      drift.push({ type: 'status', internal: internal.status, marketplace: marketplace.status, severity: 'warning' });
+    }
+    return drift;
+  }
+
+  private appendReconciliationReport(rawData: any, report: ReconciliationReportRecord): ReconciliationMetadata {
+    const existing = this.reconciliation(rawData);
+    const reports = [...existing.reports, report];
+    return {
+      version: 1,
+      reports,
+      lastReport: report,
+      driftCount: reports.filter((item) => item.status === 'drift_detected').length,
+      alignedCount: reports.filter((item) => item.status === 'aligned').length,
+    };
+  }
+
+  private reconciliation(rawData: any): ReconciliationMetadata {
+    const raw = this.asRecord(rawData);
+    const reconciliation = this.asRecord(raw.reconciliation);
+    const reports = Array.isArray(reconciliation.reports) ? reconciliation.reports as ReconciliationReportRecord[] : [];
+    return {
+      version: 1,
+      reports,
+      lastReport: this.asRecord(reconciliation.lastReport) as ReconciliationReportRecord,
+      driftCount: reports.filter((item) => item.status === 'drift_detected').length,
+      alignedCount: reports.filter((item) => item.status === 'aligned').length,
+    };
+  }
+
+  private numberOrUndefined(value: any): number | undefined {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }
+
+  private shortHash(value: string): string {
+    return createHash('sha256').update(value).digest('hex').slice(0, 16);
+  }
+
   private rawPolicyEvidence(rawData: any): OfferPolicyEvidence {
     const raw = this.asRecord(rawData);
-    return this.asRecord(raw?.policyEvidence) as OfferPolicyEvidence;
+    const draft = this.asRecord(raw.draft);
+    return this.mergePolicyEvidence(
+      this.asRecord(raw.policyEvidence) as OfferPolicyEvidence,
+      this.asRecord(draft.policyEvidence) as OfferPolicyEvidence,
+    );
   }
 
   private mergePolicyEvidence(...items: Array<OfferPolicyEvidence | undefined>): OfferPolicyEvidence {
