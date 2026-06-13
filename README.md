@@ -28,3 +28,14 @@ Aukro.cz marketplace integration — offers, accounts, stock sync, order forward
 
 → Secrets: Vault `secret/prod/aukro-service` (see [`SYSTEM.md`](SYSTEM.md))  
 → Ecosystem: [`../shared/ECOSYSTEM_MAP.md`](../shared/ECOSYSTEM_MAP.md)
+
+## Intent Preservation System
+
+This repository follows the company IPS standard. Before implementation work, read 00_constitution/CONSTITUTION.md, 01_vision/VISION.md, 17_governance/PROJECT_INVARIANTS.md, the relevant task under 11_tasks/, and its execution plan under 21_execution_plans/.
+
+Core gate commands:
+
+    python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues
+    python3 scripts/pre_coding_gate.py --root .
+    python3 scripts/deployment_readiness_gate.py --root .
+

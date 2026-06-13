@@ -1,0 +1,45 @@
+{
+  "created_at": "2026-06-13T18:15:03Z",
+  "execution_plans": {
+    "execution_plan_count": 1,
+    "execution_plan_files": [
+      "21_execution_plans/EP-TASK-001.md"
+    ],
+    "missing_validation_plan": []
+  },
+  "gate": "pre_coding",
+  "missing_immutable_files": [],
+  "next_step": "start_controlled_coding",
+  "project_invariants": {
+    "path": "17_governance/PROJECT_INVARIANTS.md",
+    "status": "pass"
+  },
+  "required_immutable_files": [
+    "00_constitution/CONSTITUTION.md",
+    "01_vision/VISION.md"
+  ],
+  "root": "/home/ssf/Documents/Github/aukro-service",
+  "schema_version": "1.0.0",
+  "sensitive_data_findings": [],
+  "shared_principles_with_dos": {
+    "missing_sections": [],
+    "path": "17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
+    "reference_boundary_present": true,
+    "required_sections": [
+      "Purpose",
+      "Relationship",
+      "Shared Principles",
+      "Boundaries",
+      "Validation"
+    ],
+    "status": "pass"
+  },
+  "status": "pass",
+  "tasks": {
+    "missing_upstream_traceability": [],
+    "task_count": 1,
+    "task_files": [
+      "11_tasks/TASK-001-implement-ips-governance-baseline.md"
+    ]
+  }
+}

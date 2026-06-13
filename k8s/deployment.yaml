@@ -36,6 +36,16 @@ spec:
                 secretKeyRef:
                   name: database-credentials
                   key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: JWT_SECRET
+            - name: JWT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: JWT_TOKEN
           startupProbe:
             httpGet:
               path: /health
