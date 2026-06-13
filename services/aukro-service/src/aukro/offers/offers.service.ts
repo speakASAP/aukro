@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService } from '@aukro/shared';
+import {
+  CatalogDraftMetadata,
+  CatalogDraftSourceSnapshot,
+  CatalogSellActionRequest,
+  CatalogSellActionResponse,
+} from './catalog-draft.types';
 import { OfferPolicyService } from './policy/offer-policy.service';
 import {
   OfferPolicyEvaluation,
@@ -91,6 +97,103 @@ export class OffersService {
       mode: input.mode || 'draft',
       evidence,
     });
+  }
+
+
+
+  async createFromCatalog(input: CatalogSellActionRequest): Promise<CatalogSellActionResponse> {
+    if (!input?.accountId) {
+      throw new BadRequestException('accountId is required');
+    }
+    if (!input?.productId) {
+      throw new BadRequestException('productId is required');
+    }
+
+    const account = await this.prisma.aukroAccount.findUnique({ where: { id: input.accountId } });
+    if (!account) {
+      throw new NotFoundException(`Account ${input.accountId} not found`);
+    }
+
+    const [product, stockQuantity, pricing, media] = await Promise.all([
+      this.catalogClient.getProductById(input.productId),
+      this.warehouseClient.getTotalAvailable(input.productId),
+      this.catalogClient.getProductPricing(input.productId),
+      this.catalogClient.getProductMedia(input.productId),
+    ]);
+
+    const existingOffer = await this.prisma.aukroOffer.findFirst({
+      where: {
+        accountId: input.accountId,
+        productId: input.productId,
+      },
+    });
+    const duplicateFound = Boolean(
+      await this.prisma.aukroOffer.findFirst({
+        where: {
+          ...(existingOffer ? { id: { not: existingOffer.id } } : {}),
+          accountId: input.accountId,
+          productId: input.productId,
+          isActive: true,
+        },
+      }),
+    );
+
+    const price = Number(pricing?.basePrice ?? pricing?.price ?? 0);
+    const sourceSnapshot = this.buildCatalogDraftSnapshot({ product, pricing, stockQuantity, media });
+    const policyEvidence = this.mergePolicyEvidence(
+      this.buildDerivedEvidence({
+        offer: {
+          account,
+          rawData: {
+            aukroCategoryId: product?.aukroCategoryId,
+            aukroParametersComplete: product?.aukroParametersComplete,
+          },
+          stockQuantity,
+          price,
+        },
+        product,
+        stockQuantity,
+        pricing,
+        media,
+        duplicateFound,
+      }),
+      input.policyEvidence,
+    );
+    const compliancePolicy = this.offerPolicyService.evaluateDraft(policyEvidence);
+    const draftStatus = compliancePolicy.allowed ? 'ready_for_review' : 'blocked';
+    const rawData = this.mergeDraftRawData(existingOffer?.rawData, {
+      draftVersion: 1,
+      draftStatus,
+      source: 'catalog-sell-action',
+      requestedBy: input.requestedBy,
+      sourceSnapshot,
+      policyEvidence,
+      policyReasonCodes: compliancePolicy.reasonCodes,
+    });
+    const offerData = {
+      accountId: input.accountId,
+      productId: input.productId,
+      title: sourceSnapshot.title,
+      description: sourceSnapshot.description,
+      price,
+      stockQuantity,
+      isActive: false,
+      rawData,
+    };
+
+    const offer = existingOffer
+      ? await this.prisma.aukroOffer.update({ where: { id: existingOffer.id }, data: offerData })
+      : await this.prisma.aukroOffer.create({ data: offerData });
+
+    return {
+      success: true,
+      action: existingOffer ? 'reused' : 'created',
+      draftStatus,
+      offer,
+      sourceSnapshot,
+      compliancePolicy,
+      blockers: compliancePolicy.reasonCodes,
+    };
   }
 
   async syncFromCatalog(data?: { accountId?: string; limit?: number; activeOnly?: boolean; policyEvidence?: OfferPolicyEvidence }) {
@@ -327,6 +430,36 @@ export class OffersService {
         currency: snapshot.pricing?.currency || 'CZK',
       },
       duplicateChecked: this.flag(!snapshot.duplicateFound, checkedAt, 'aukro-service'),
+    };
+  }
+
+
+
+  private buildCatalogDraftSnapshot(snapshot: {
+    product: any;
+    pricing?: any;
+    stockQuantity: number;
+    media: any[];
+  }): CatalogDraftSourceSnapshot {
+    const product = snapshot.product || {};
+    const price = Number(snapshot.pricing?.basePrice ?? snapshot.pricing?.price ?? 0);
+    return {
+      productId: product.id,
+      title: product.title || product.name || 'Untitled catalog product',
+      description: product.description,
+      categoryId: product.categoryId || product.category?.id,
+      price: Number.isFinite(price) ? price : 0,
+      currency: snapshot.pricing?.currency || 'CZK',
+      stockQuantity: Number(snapshot.stockQuantity || 0),
+      mediaCount: snapshot.media?.length || 0,
+      capturedAt: new Date().toISOString(),
+    };
+  }
+
+  private mergeDraftRawData(rawData: any, draft: CatalogDraftMetadata): Record<string, any> {
+    return {
+      ...this.asRecord(rawData),
+      draft,
     };
   }
 

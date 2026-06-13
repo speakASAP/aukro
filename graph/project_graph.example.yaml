@@ -11,6 +11,9 @@ nodes:
 - id: FEAT-004
   type: Feature
   path: 10_features/FEAT-004-aukro-compliance-policy.md
+- id: FEAT-005
+  type: Feature
+  path: 10_features/FEAT-005-catalog-warehouse-publisher.md
 - id: FEAT-009
   type: Feature
   path: 10_features/FEAT-009-service-integration-clients.md
@@ -77,6 +80,24 @@ nodes:
 - id: VAL-TASK-004-service-integration-clients
   type: ValidationReport
   path: 12_validation/VAL-TASK-004-service-integration-clients.md
+- id: TASK-005
+  type: Task
+  path: 11_tasks/TASK-005-catalog-sell-action-draft-model.md
+- id: EP-TASK-005
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-005-catalog-sell-action-draft-model.md
+- id: CP-TASK-005
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-005-catalog-sell-action-draft-model.md
+- id: PROMPT-TASK-005-catalog-sell-action-draft-model
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-005-catalog-sell-action-draft-model.md
+- id: GOAL-IMPACT-TASK-005
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-005.md
+- id: VAL-TASK-005-catalog-sell-action-draft-model
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -183,3 +204,34 @@ edges:
 - from: VAL-TASK-004-service-integration-clients
   type: validates
   to: TASK-004
+
+- from: TASK-005
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-005
+  type: implements
+  to: FEAT-005
+- from: TASK-005
+  type: decomposes_into
+  to: EP-TASK-005
+- from: TASK-005
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-005
+- from: EP-TASK-005
+  type: derives_from
+  to: TASK-005
+- from: EP-TASK-005
+  type: generates
+  to: PROMPT-TASK-005-catalog-sell-action-draft-model
+- from: EP-TASK-005
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-005-catalog-sell-action-draft-model
+  type: derives_from
+  to: EP-TASK-005
+- from: PROMPT-TASK-005-catalog-sell-action-draft-model
+  type: included_in_context
+  to: CP-TASK-005
+- from: VAL-TASK-005-catalog-sell-action-draft-model
+  type: validates
+  to: TASK-005

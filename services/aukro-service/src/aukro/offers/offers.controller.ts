@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { JwtAuthGuard } from '@aukro/shared';
+import { CatalogSellActionRequest } from './catalog-draft.types';
 import { OfferPolicyInput } from './policy/offer-policy.types';
 
 @Controller('offers')
@@ -26,6 +27,11 @@ export class OffersController {
   @Post('sync')
   async syncOffers(@Body() data?: any): Promise<any> {
     return this.offersService.syncFromCatalog(data);
+  }
+
+  @Post('from-catalog')
+  async createFromCatalog(@Body() data: CatalogSellActionRequest): Promise<any> {
+    return this.offersService.createFromCatalog(data);
   }
 
   @Post(':id/policy-check')
