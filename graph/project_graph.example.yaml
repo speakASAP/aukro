@@ -11,6 +11,9 @@ nodes:
 - id: FEAT-004
   type: Feature
   path: 10_features/FEAT-004-aukro-compliance-policy.md
+- id: FEAT-009
+  type: Feature
+  path: 10_features/FEAT-009-service-integration-clients.md
 - id: TASK-001
   type: Task
   path: 11_tasks/TASK-001-implement-ips-governance-baseline.md
@@ -56,6 +59,24 @@ nodes:
 - id: VAL-TASK-003-aukro-compliance-policy
   type: ValidationReport
   path: 12_validation/VAL-TASK-003-aukro-compliance-policy.md
+- id: TASK-004
+  type: Task
+  path: 11_tasks/TASK-004-service-integration-clients.md
+- id: EP-TASK-004
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-004-service-integration-clients.md
+- id: CP-TASK-004
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-004-service-integration-clients.md
+- id: PROMPT-TASK-004-service-integration-clients
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-004-service-integration-clients.md
+- id: GOAL-IMPACT-TASK-004
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-004.md
+- id: VAL-TASK-004-service-integration-clients
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-004-service-integration-clients.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -132,3 +153,33 @@ edges:
 - from: VAL-TASK-003-aukro-compliance-policy
   type: validates
   to: TASK-003
+- from: TASK-004
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-004
+  type: implements
+  to: FEAT-009
+- from: TASK-004
+  type: decomposes_into
+  to: EP-TASK-004
+- from: TASK-004
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-004
+- from: EP-TASK-004
+  type: derives_from
+  to: TASK-004
+- from: EP-TASK-004
+  type: generates
+  to: PROMPT-TASK-004-service-integration-clients
+- from: EP-TASK-004
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-004-service-integration-clients
+  type: derives_from
+  to: EP-TASK-004
+- from: PROMPT-TASK-004-service-integration-clients
+  type: included_in_context
+  to: CP-TASK-004
+- from: VAL-TASK-004-service-integration-clients
+  type: validates
+  to: TASK-004

@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "LOGGING_SERVICE_URL=http://logging-microservice:3367 ../services/aukro-service/node_modules/.bin/ts-node --compiler-options \"{\\\"types\\\":[\\\"node\\\"]}\" clients/ecosystem-clients.spec.ts"
   },
   "keywords": [
     "aukro",
@@ -29,7 +29,7 @@
     "@types/amqplib": "^0.10.4",
     "@types/node": "^20.10.0",
     "prisma": "^5.7.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
 }
-

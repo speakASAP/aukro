@@ -1,4 +1,12 @@
 export * from './catalog-client.service';
 export * from './warehouse-client.service';
 export * from './order-client.service';
-
+export * from './ecosystem-client.types';
+export * from './ai-client.service';
+export * from './leads-client.service';
+export * from './marketing-client.service';
+export * from './minio-client.service';
+export * from './notifications-client.service';
+export * from './payments-client.service';
+export * from './suppliers-client.service';
+export * from './logging-client.service';
