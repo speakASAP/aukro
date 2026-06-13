@@ -1,5 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService } from '@aukro/shared';
+import { OfferPolicyService } from './policy/offer-policy.service';
+import {
+  OfferPolicyEvaluation,
+  OfferPolicyEvidence,
+  OfferPolicyInput,
+  PolicyEvidenceFlag,
+} from './policy/offer-policy.types';
 
 @Injectable()
 export class OffersService {
@@ -9,6 +16,7 @@ export class OffersService {
     private readonly prisma: PrismaService,
     private readonly catalogClient: CatalogClientService,
     private readonly warehouseClient: WarehouseClientService,
+    private readonly offerPolicyService: OfferPolicyService,
     loggerService: LoggerService,
   ) {
     this.logger = loggerService;
@@ -51,16 +59,22 @@ export class OffersService {
   }
 
   async create(data: any): Promise<any> {
-    return this.prisma.aukroOffer.create({
-      data,
+    const { policyEvidence, ...offerData } = data || {};
+    const offer = await this.prisma.aukroOffer.create({
+      data: offerData,
     });
+
+    return this.withDraftPolicySnapshot(offer, policyEvidence);
   }
 
   async update(id: string, data: any): Promise<any> {
-    return this.prisma.aukroOffer.update({
+    const { policyEvidence, ...offerData } = data || {};
+    const offer = await this.prisma.aukroOffer.update({
       where: { id },
-      data,
+      data: offerData,
     });
+
+    return this.withDraftPolicySnapshot(offer, policyEvidence);
   }
 
   async delete(id: string): Promise<any> {
@@ -70,7 +84,16 @@ export class OffersService {
     });
   }
 
-  async syncFromCatalog(data?: { accountId?: string; limit?: number; activeOnly?: boolean }) {
+  async evaluatePolicy(id: string, input: OfferPolicyInput = {}): Promise<OfferPolicyEvaluation> {
+    const evidence = await this.collectOfferPolicyEvidence(id, input.evidence);
+    return this.offerPolicyService.evaluate({
+      ...input,
+      mode: input.mode || 'draft',
+      evidence,
+    });
+  }
+
+  async syncFromCatalog(data?: { accountId?: string; limit?: number; activeOnly?: boolean; policyEvidence?: OfferPolicyEvidence }) {
     try {
       const accountId = data?.accountId;
       const limit = data?.limit || 100;
@@ -103,6 +126,7 @@ export class OffersService {
         created: 0,
         updated: 0,
         failed: 0,
+        policyBlocked: 0,
         errors: [] as string[],
       };
 
@@ -126,11 +150,11 @@ export class OffersService {
 
           // Get primary image
           const media = await this.catalogClient.getProductMedia(product.id);
-          const primaryImage = media.find((m: any) => m.isPrimary) || media[0];
 
+          let offer: any;
           if (existingOffer) {
             // Update existing offer
-            await this.prisma.aukroOffer.update({
+            offer = await this.prisma.aukroOffer.update({
               where: { id: existingOffer.id },
               data: {
                 title: product.title || product.name,
@@ -144,7 +168,7 @@ export class OffersService {
             results.updated++;
           } else {
             // Create new offer
-            await this.prisma.aukroOffer.create({
+            offer = await this.prisma.aukroOffer.create({
               data: {
                 accountId,
                 productId: product.id,
@@ -156,6 +180,23 @@ export class OffersService {
               },
             });
             results.created++;
+          }
+
+          const policy = this.offerPolicyService.evaluateDraft(
+            this.mergePolicyEvidence(
+              this.buildDerivedEvidence({
+                offer: { ...offer, account },
+                product,
+                stockQuantity,
+                pricing: { basePrice: price },
+                media,
+                duplicateFound: false,
+              }),
+              data?.policyEvidence,
+            ),
+          );
+          if (!policy.allowed) {
+            results.policyBlocked++;
           }
         } catch (error: any) {
           results.failed++;
@@ -175,5 +216,134 @@ export class OffersService {
       throw error;
     }
   }
-}
 
+  private async withDraftPolicySnapshot(offer: any, policyEvidence?: OfferPolicyEvidence): Promise<any> {
+    try {
+      return {
+        ...offer,
+        compliancePolicy: await this.evaluatePolicy(offer.id, {
+          mode: 'draft',
+          evidence: policyEvidence,
+        }),
+      };
+    } catch (error: any) {
+      this.logger.warn(`Failed to evaluate draft policy for offer ${offer.id}: ${error.message}`);
+      return {
+        ...offer,
+        compliancePolicy: this.offerPolicyService.evaluateDraft(policyEvidence || {}),
+      };
+    }
+  }
+
+  private async collectOfferPolicyEvidence(id: string, suppliedEvidence?: OfferPolicyEvidence): Promise<OfferPolicyEvidence> {
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    let product: any = null;
+    let stockQuantity = offer.stockQuantity;
+    let pricing: any = { basePrice: offer.price };
+    let media: any[] = [];
+
+    if (offer.productId) {
+      try {
+        product = await this.catalogClient.getProductById(offer.productId);
+      } catch (error: any) {
+        this.logger.warn(`Policy evidence catalog lookup failed for offer ${id}: ${error.message}`);
+      }
+
+      try {
+        stockQuantity = await this.warehouseClient.getTotalAvailable(offer.productId);
+      } catch (error: any) {
+        this.logger.warn(`Policy evidence stock lookup failed for offer ${id}: ${error.message}`);
+      }
+
+      try {
+        pricing = (await this.catalogClient.getProductPricing(offer.productId)) || pricing;
+      } catch (error: any) {
+        this.logger.warn(`Policy evidence pricing lookup failed for offer ${id}: ${error.message}`);
+      }
+
+      try {
+        media = await this.catalogClient.getProductMedia(offer.productId);
+      } catch (error: any) {
+        this.logger.warn(`Policy evidence media lookup failed for offer ${id}: ${error.message}`);
+      }
+    }
+
+    const duplicateFound = offer.productId
+      ? Boolean(await this.prisma.aukroOffer.findFirst({
+          where: {
+            id: { not: offer.id },
+            accountId: offer.accountId,
+            productId: offer.productId,
+            isActive: true,
+          },
+        }))
+      : false;
+
+    return this.mergePolicyEvidence(
+      this.rawPolicyEvidence(offer.rawData),
+      this.buildDerivedEvidence({ offer, product, stockQuantity, pricing, media, duplicateFound }),
+      suppliedEvidence,
+    );
+  }
+
+  private buildDerivedEvidence(snapshot: {
+    offer: any;
+    product?: any;
+    stockQuantity?: number;
+    pricing?: any;
+    media?: any[];
+    duplicateFound?: boolean;
+  }): OfferPolicyEvidence {
+    const checkedAt = new Date().toISOString();
+    const product = snapshot.product;
+    const rawData = this.asRecord(snapshot.offer.rawData);
+    const categoryMapped = Boolean(product?.categoryId || product?.category?.id || rawData?.aukroCategoryId);
+    const requiredParametersComplete = Boolean(rawData?.aukroParametersComplete || (product?.attributes && Object.keys(product.attributes).length > 0));
+    const stockQuantity = Number(snapshot.stockQuantity ?? snapshot.offer.stockQuantity ?? 0);
+    const price = snapshot.pricing?.basePrice ?? snapshot.pricing?.price ?? snapshot.offer.price;
+    const mediaReady = Boolean(snapshot.media?.length);
+
+    return {
+      catalogValidated: this.flag(Boolean(product && product.isActive !== false), checkedAt, 'catalog-microservice'),
+      accountReady: this.flag(Boolean(snapshot.offer.account?.isActive), checkedAt, 'aukro-service'),
+      categoryMapped: this.flag(categoryMapped, checkedAt, 'aukro-service'),
+      requiredParametersComplete: this.flag(requiredParametersComplete, checkedAt, 'aukro-service'),
+      mediaReady: this.flag(mediaReady, checkedAt, 'catalog-microservice'),
+      stockAvailable: {
+        ...this.flag(stockQuantity > 0, checkedAt, 'warehouse-microservice'),
+        quantity: stockQuantity,
+      },
+      priceValid: {
+        ...this.flag(Number(price) > 0, checkedAt, 'catalog-microservice'),
+        price,
+        currency: snapshot.pricing?.currency || 'CZK',
+      },
+      duplicateChecked: this.flag(!snapshot.duplicateFound, checkedAt, 'aukro-service'),
+    };
+  }
+
+  private rawPolicyEvidence(rawData: any): OfferPolicyEvidence {
+    const raw = this.asRecord(rawData);
+    return this.asRecord(raw?.policyEvidence) as OfferPolicyEvidence;
+  }
+
+  private mergePolicyEvidence(...items: Array<OfferPolicyEvidence | undefined>): OfferPolicyEvidence {
+    return items.reduce((merged, item) => ({ ...merged, ...(item || {}) }), {} as OfferPolicyEvidence);
+  }
+
+  private flag(passed: boolean, checkedAt: string, source: string): PolicyEvidenceFlag {
+    return { passed, checkedAt, source };
+  }
+
+  private asRecord(value: any): Record<string, any> {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+}

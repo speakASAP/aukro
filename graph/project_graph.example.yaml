@@ -8,6 +8,9 @@ nodes:
 - id: FEAT-001
   type: Feature
   path: 10_features/FEAT-001-offer-management.md
+- id: FEAT-004
+  type: Feature
+  path: 10_features/FEAT-004-aukro-compliance-policy.md
 - id: TASK-001
   type: Task
   path: 11_tasks/TASK-001-implement-ips-governance-baseline.md
@@ -41,6 +44,18 @@ nodes:
 - id: VAL-TASK-002-create-ai-commerce-roadmap
   type: ValidationReport
   path: 12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md
+- id: TASK-003
+  type: Task
+  path: 11_tasks/TASK-003-aukro-compliance-policy.md
+- id: EP-TASK-003
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-003-aukro-compliance-policy.md
+- id: GOAL-IMPACT-TASK-003
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-003.md
+- id: VAL-TASK-003-aukro-compliance-policy
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-003-aukro-compliance-policy.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -93,3 +108,27 @@ edges:
 - from: VAL-TASK-002-create-ai-commerce-roadmap
   type: validates
   to: TASK-002
+- from: TASK-003
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-003
+  type: implements
+  to: FEAT-004
+- from: TASK-003
+  type: decomposes_into
+  to: EP-TASK-003
+- from: TASK-003
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-003
+- from: EP-TASK-003
+  type: derives_from
+  to: TASK-003
+- from: EP-TASK-003
+  type: generates
+  to: PROMPT-TASK-003-aukro-compliance-policy
+- from: EP-TASK-003
+  type: constrained_by
+  to: ADR-001
+- from: VAL-TASK-003-aukro-compliance-policy
+  type: validates
+  to: TASK-003

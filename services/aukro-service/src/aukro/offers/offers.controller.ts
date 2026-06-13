@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { JwtAuthGuard } from '@aukro/shared';
+import { OfferPolicyInput } from './policy/offer-policy.types';
 
 @Controller('offers')
 @UseGuards(JwtAuthGuard)
@@ -27,6 +28,11 @@ export class OffersController {
     return this.offersService.syncFromCatalog(data);
   }
 
+  @Post(':id/policy-check')
+  async checkOfferPolicy(@Param('id') id: string, @Body() data?: OfferPolicyInput): Promise<any> {
+    return this.offersService.evaluatePolicy(id, data || {});
+  }
+
   @Put(':id')
   async updateOffer(@Param('id') id: string, @Body() data: any): Promise<any> {
     return this.offersService.update(id, data);
@@ -37,4 +43,3 @@ export class OffersController {
     return this.offersService.delete(id);
   }
 }
-
