@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '@aukro/shared';
 import { CatalogSellActionRequest } from './catalog-draft.types';
 import { CreateAiProposalRequest, ReviewAiProposalRequest } from './ai-proposal.types';
 import { EnqueuePublishRequest, RecordReconciliationRequest } from './publish-observability.types';
+import { RecordRevenueAnalyticsRequest } from './revenue-analytics.types';
 import { OfferPolicyInput } from './policy/offer-policy.types';
 
 @Controller('offers')
@@ -58,6 +59,11 @@ export class OffersController {
   @Post(':id/reconciliation')
   async recordReconciliation(@Param('id') id: string, @Body() data: RecordReconciliationRequest): Promise<any> {
     return this.offersService.recordReconciliation(id, data);
+  }
+
+  @Post(':id/revenue-analytics')
+  async recordRevenueAnalytics(@Param('id') id: string, @Body() data: RecordRevenueAnalyticsRequest): Promise<any> {
+    return this.offersService.recordRevenueAnalytics(id, data);
   }
 
   @Post(':id/policy-check')

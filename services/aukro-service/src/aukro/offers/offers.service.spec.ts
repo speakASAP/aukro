@@ -7,7 +7,7 @@ const { OfferPolicyService } = require('./policy/offer-policy.service');
 
 const fresh = '2026-06-13T12:00:00.000Z';
 
-function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any } = {}) {
+function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -74,6 +74,13 @@ function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any
   const notificationsClient = {
     sendAukroNotification: async () => ({ success: true, service: 'notifications-microservice', contractVersion: 'aukro.notifications.send.v1' }),
   };
+  const emittedEvents: any[] = [];
+  const loggingClient = {
+    emitAukroEvent: async (eventName: string, input: any, context: any) => {
+      emittedEvents.push({ eventName, input, context });
+      return overrides.loggingResult || { success: true, service: 'logging-microservice', contractVersion: 'aukro.logging.event.v1' };
+    },
+  };
   const logger = { setContext() {}, log() {}, warn() {}, error() {} };
   const service = new OffersService(
     prisma as any,
@@ -82,10 +89,11 @@ function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any
     new OfferPolicyService(),
     aiClient as any,
     notificationsClient as any,
+    loggingClient as any,
     logger as any,
   );
 
-  return { service, getCreateCount: () => createCount, account, product };
+  return { service, getCreateCount: () => createCount, account, product, emittedEvents };
 }
 
 async function run() {
@@ -187,6 +195,61 @@ async function run() {
   assert.ok(reconciliation.report.drift.some((item: any) => item.type === 'status'));
   assert.equal(reconciliation.report.mutation.enabled, false);
   assert.equal(reconciliation.reconciliation.driftCount, 1);
+
+
+
+  const revenue = await proposalHarness.service.recordRevenueAnalytics(created.offer.id, {
+    actorId: 'ops:synthetic',
+    analyticsId: 'revenue-synthetic-1',
+    source: 'synthetic-test',
+    correlationId: 'corr-revenue-1',
+    metrics: {
+      views: 120,
+      watchers: 8,
+      conversionRate: 0.01,
+      blockedRevenue: 1500,
+      availableStock: 1,
+      marginPercent: 8,
+      stockAgeDays: 120,
+      mediaCount: 0,
+      policyReasonCodes: ['MEDIA_READINESS_FAILED'],
+    },
+  });
+  assert.equal(revenue.action, 'created');
+  assert.equal(revenue.record.blockedRevenue, 1500);
+  assert.equal(revenue.record.mutation.enabled, false);
+  assert.ok(revenue.recommendationEvents.some((event: any) => event.targetService === 'operations'));
+  assert.ok(revenue.recommendationEvents.some((event: any) => event.targetService === 'marketing-microservice'));
+  assert.ok(revenue.recommendationEvents.some((event: any) => event.targetService === 'catalog-microservice'));
+  assert.ok(revenue.recommendationEvents.some((event: any) => event.targetService === 'suppliers-microservice'));
+  assert.ok(revenue.recommendationEvents.some((event: any) => event.targetService === 'ai-microservice'));
+  assert.equal(revenue.record.logging.successCount, revenue.recommendationEvents.length);
+  assert.equal(proposalHarness.emittedEvents.length, revenue.recommendationEvents.length);
+  assert.equal(proposalHarness.emittedEvents[0].eventName, 'aukro.revenue.recommendation');
+  assert.equal(proposalHarness.emittedEvents[0].input.context.offerId, created.offer.id);
+  assert.equal(JSON.stringify(proposalHarness.emittedEvents).includes('customer'), false);
+
+  const revenueReplay = await proposalHarness.service.recordRevenueAnalytics(created.offer.id, {
+    actorId: 'ops:synthetic',
+    analyticsId: 'revenue-synthetic-1',
+    metrics: { blockedRevenue: 9999 },
+  });
+  assert.equal(revenueReplay.action, 'reused');
+  assert.equal(revenueReplay.record.blockedRevenue, 1500);
+  assert.equal(revenueReplay.analytics.records.length, 1);
+
+  const loggingUnavailableHarness = createHarness({
+    existingOffer: created.offer,
+    loggingResult: { success: false, unavailable: true, service: 'logging-microservice', contractVersion: 'aukro.logging.event.v1', errorCode: 'SERVICE_UNAVAILABLE' },
+  });
+  const unavailableRevenue = await loggingUnavailableHarness.service.recordRevenueAnalytics(created.offer.id, {
+    actorId: 'ops:synthetic',
+    analyticsId: 'revenue-synthetic-unavailable',
+    metrics: { blockedRevenue: 100, policyReasonCodes: ['STOCK_AVAILABILITY_FAILED'] },
+  });
+  assert.equal(unavailableRevenue.action, 'created');
+  assert.equal(unavailableRevenue.record.logging.unavailableCount, unavailableRevenue.recommendationEvents.length);
+  assert.equal(unavailableRevenue.analytics.records.length, 1);
 
   const rejectHarness = createHarness({ existingOffer: created.offer });
   const risky = await rejectHarness.service.createAiProposal(created.offer.id, {

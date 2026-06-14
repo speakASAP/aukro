@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService } from '@aukro/shared';
+import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService, LoggingClientService } from '@aukro/shared';
 import { AiClientService } from '@aukro/shared/clients/ai-client.service';
 import { NotificationsClientService } from '@aukro/shared/clients/notifications-client.service';
 import {
@@ -30,6 +30,14 @@ import {
   ReconciliationMetadata,
   ReconciliationReportRecord,
 } from './publish-observability.types';
+import {
+  RecordRevenueAnalyticsRequest,
+  RecordRevenueAnalyticsResponse,
+  RevenueAnalyticsMetadata,
+  RevenueAnalyticsRecord,
+  RevenueMetricSnapshot,
+  RevenueRecommendationEvent,
+} from './revenue-analytics.types';
 import { OfferPolicyService } from './policy/offer-policy.service';
 import {
   OfferPolicyEvaluation,
@@ -49,6 +57,7 @@ export class OffersService {
     private readonly offerPolicyService: OfferPolicyService,
     private readonly aiClient: AiClientService,
     private readonly notificationsClient: NotificationsClientService,
+    private readonly loggingClient: LoggingClientService,
     loggerService: LoggerService,
   ) {
     this.logger = loggerService;
@@ -518,6 +527,73 @@ export class OffersService {
       success: true,
       report,
       reconciliation,
+    };
+  }
+
+
+  async recordRevenueAnalytics(id: string, input: RecordRevenueAnalyticsRequest): Promise<RecordRevenueAnalyticsResponse> {
+    if (!input?.actorId) {
+      throw new BadRequestException('actorId is required');
+    }
+
+    const offer = await this.prisma.aukroOffer.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+    if (!offer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+
+    const rawData = this.asRecord(offer.rawData);
+    const observedAt = input.observedAt || new Date().toISOString();
+    const analyticsId = input.analyticsId?.trim() || this.revenueAnalyticsId(offer, observedAt, input.source || 'manual');
+    const existing = this.revenueAnalytics(rawData);
+    const existingRecord = existing.records.find((record) => record.id === analyticsId);
+    if (existingRecord) {
+      return {
+        success: true,
+        action: 'reused',
+        record: existingRecord,
+        analytics: existing,
+        recommendationEvents: existingRecord.recommendationEvents,
+      };
+    }
+
+    const metrics = this.normalizeRevenueMetrics(input.metrics || {}, rawData);
+    const recommendationEvents = this.buildRevenueRecommendationEvents(offer, analyticsId, metrics);
+    const logging = await this.emitRevenueRecommendationEvents(offer, input, analyticsId, recommendationEvents);
+    const record: RevenueAnalyticsRecord = {
+      id: analyticsId,
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId || undefined,
+      actorId: input.actorId,
+      source: input.source || 'manual',
+      observedAt,
+      recordedAt: new Date().toISOString(),
+      correlationId: input.correlationId,
+      metrics,
+      blockedRevenue: Number(metrics.blockedRevenue || 0),
+      recommendationEvents,
+      logging,
+      mutation: {
+        enabled: false,
+        reason: 'REVENUE_ANALYTICS_RECORD_ONLY',
+      },
+    };
+    const analytics = this.appendRevenueAnalyticsRecord(rawData, record);
+
+    await this.prisma.aukroOffer.update({
+      where: { id: offer.id },
+      data: { rawData: { ...rawData, revenueAnalytics: analytics } },
+    });
+
+    return {
+      success: true,
+      action: 'created',
+      record,
+      analytics,
+      recommendationEvents,
     };
   }
 
@@ -1052,6 +1128,165 @@ export class OffersService {
       driftCount: reports.filter((item) => item.status === 'drift_detected').length,
       alignedCount: reports.filter((item) => item.status === 'aligned').length,
     };
+  }
+
+
+  private revenueAnalyticsId(offer: any, observedAt: string, source: string): string {
+    return `rev-${this.shortHash(`${offer.id}:${observedAt}:${source}:v1`)}`;
+  }
+
+  private normalizeRevenueMetrics(metrics: RevenueMetricSnapshot, rawData: any): RevenueMetricSnapshot {
+    const queue = this.publishQueue(rawData, 'unknown');
+    const lastAttempt = queue.attempts[queue.attempts.length - 1];
+    const policyReasonCodes = Array.from(new Set([
+      ...this.stringArray(metrics.policyReasonCodes),
+      ...(lastAttempt?.blockers || []),
+    ]));
+    return {
+      views: this.nonNegativeNumber(metrics.views),
+      watchers: this.nonNegativeNumber(metrics.watchers),
+      questions: this.nonNegativeNumber(metrics.questions),
+      soldQuantity: this.nonNegativeNumber(metrics.soldQuantity),
+      conversionRate: this.rateNumber(metrics.conversionRate),
+      grossRevenue: this.nonNegativeNumber(metrics.grossRevenue),
+      contributionMargin: this.numberOrUndefined(metrics.contributionMargin),
+      marginPercent: this.numberOrUndefined(metrics.marginPercent),
+      blockedRevenue: this.nonNegativeNumber(metrics.blockedRevenue),
+      stockAgeDays: this.nonNegativeNumber(metrics.stockAgeDays),
+      availableStock: this.nonNegativeNumber(metrics.availableStock),
+      price: this.numberOrUndefined(metrics.price),
+      currency: metrics.currency ? String(metrics.currency) : 'CZK',
+      mediaCount: this.nonNegativeNumber(metrics.mediaCount),
+      policyReasonCodes,
+    };
+  }
+
+  private buildRevenueRecommendationEvents(offer: any, analyticsId: string, metrics: RevenueMetricSnapshot): RevenueRecommendationEvent[] {
+    const events: RevenueRecommendationEvent[] = [];
+    const context = {
+      offerId: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId || undefined,
+      analyticsId,
+      blockedRevenue: metrics.blockedRevenue,
+      conversionRate: metrics.conversionRate,
+      availableStock: metrics.availableStock,
+      marginPercent: metrics.marginPercent,
+      stockAgeDays: metrics.stockAgeDays,
+      policyReasonCodes: metrics.policyReasonCodes || [],
+    };
+    const add = (targetService: RevenueRecommendationEvent['targetService'], priority: RevenueRecommendationEvent['priority'], action: string, reasonCodes: string[]) => {
+      events.push({
+        id: `revrec-${this.shortHash(`${analyticsId}:${targetService}:${action}:${reasonCodes.join('|')}`)}`,
+        targetService,
+        priority,
+        action,
+        reasonCodes,
+        context,
+      });
+    };
+
+    if ((metrics.blockedRevenue || 0) > 0 || (metrics.policyReasonCodes || []).length > 0) {
+      add('operations', 'high', 'Review blocked Aukro revenue and clear publish blockers.', ['BLOCKED_REVENUE', ...(metrics.policyReasonCodes || [])]);
+    }
+    if ((metrics.views || 0) >= 50 && (metrics.conversionRate || 0) < 0.02) {
+      add('marketing-microservice', 'medium', 'Review campaign, title, and merchandising for low conversion traffic.', ['LOW_CONVERSION_TRAFFIC']);
+    }
+    if ((metrics.mediaCount || 0) === 0) {
+      add('catalog-microservice', 'medium', 'Add channel-ready media before revenue optimization.', ['MEDIA_EVIDENCE_MISSING']);
+    }
+    if ((metrics.availableStock || 0) <= 1 && ((metrics.conversionRate || 0) >= 0.05 || (metrics.watchers || 0) >= 5)) {
+      add('suppliers-microservice', 'high', 'Check replenishment options for converting low-stock product.', ['LOW_STOCK_HIGH_CONVERSION']);
+    }
+    if (metrics.marginPercent !== undefined && metrics.marginPercent < 10) {
+      add('ai-microservice', 'medium', 'Request price and margin recommendation before promotion.', ['MARGIN_RISK']);
+    }
+    if ((metrics.stockAgeDays || 0) >= 90 && (metrics.availableStock || 0) > 0) {
+      add('marketing-microservice', 'medium', 'Consider campaign support for aged available stock.', ['AGED_STOCK']);
+    }
+
+    return events;
+  }
+
+  private async emitRevenueRecommendationEvents(
+    offer: any,
+    input: RecordRevenueAnalyticsRequest,
+    analyticsId: string,
+    events: RevenueRecommendationEvent[],
+  ): Promise<RevenueAnalyticsRecord['logging']> {
+    let successCount = 0;
+    let failureCount = 0;
+    let unavailableCount = 0;
+    for (const event of events) {
+      try {
+        const result = await this.loggingClient.emitAukroEvent('aukro.revenue.recommendation', {
+          analyticsId,
+          targetService: event.targetService,
+          priority: event.priority,
+          action: event.action,
+          reasonCodes: event.reasonCodes,
+          context: event.context,
+        }, {
+          correlationId: input.correlationId || analyticsId,
+          actorId: input.actorId,
+          accountId: offer.accountId,
+          offerId: offer.id,
+          productId: offer.productId,
+        });
+        if (result.success) successCount++;
+        else if (result.unavailable) unavailableCount++;
+        else failureCount++;
+      } catch (error: any) {
+        failureCount++;
+        this.logger.warn(`Revenue recommendation logging failed for offer ${offer.id}: ${error.message}`);
+      }
+    }
+    return {
+      attempted: events.length > 0,
+      successCount,
+      failureCount,
+      unavailableCount,
+    };
+  }
+
+  private appendRevenueAnalyticsRecord(rawData: any, record: RevenueAnalyticsRecord): RevenueAnalyticsMetadata {
+    const existing = this.revenueAnalytics(rawData);
+    const records = [...existing.records, record];
+    return {
+      version: 1,
+      records,
+      lastRecord: record,
+      blockedRevenueTotal: records.reduce((total, item) => total + Number(item.blockedRevenue || 0), 0),
+      recommendationCount: records.reduce((total, item) => total + item.recommendationEvents.length, 0),
+    };
+  }
+
+  private revenueAnalytics(rawData: any): RevenueAnalyticsMetadata {
+    const raw = this.asRecord(rawData);
+    const analytics = this.asRecord(raw.revenueAnalytics);
+    const records = Array.isArray(analytics.records) ? analytics.records as RevenueAnalyticsRecord[] : [];
+    return {
+      version: 1,
+      records,
+      lastRecord: this.asRecord(analytics.lastRecord) as RevenueAnalyticsRecord,
+      blockedRevenueTotal: records.reduce((total, item) => total + Number(item.blockedRevenue || 0), 0),
+      recommendationCount: records.reduce((total, item) => total + item.recommendationEvents.length, 0),
+    };
+  }
+
+  private nonNegativeNumber(value: any): number | undefined {
+    const numeric = this.numberOrUndefined(value);
+    return numeric === undefined ? undefined : Math.max(0, numeric);
+  }
+
+  private rateNumber(value: any): number | undefined {
+    const numeric = this.numberOrUndefined(value);
+    if (numeric === undefined) return undefined;
+    return Math.max(0, Math.min(1, numeric));
+  }
+
+  private stringArray(value: any): string[] {
+    return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
   }
 
   private numberOrUndefined(value: any): number | undefined {

@@ -119,6 +119,9 @@ nodes:
 - id: VAL-TASK-006-ai-proposal-human-approval
   type: ValidationReport
   path: 12_validation/VAL-TASK-006-ai-proposal-human-approval.md
+- id: FEAT-007
+  type: Feature
+  path: 10_features/FEAT-007-ecosystem-revenue-optimization.md
 - id: FEAT-008
   type: Feature
   path: 10_features/FEAT-008-observability-reconciliation.md
@@ -140,6 +143,24 @@ nodes:
 - id: VAL-TASK-007-publish-queue-reconciliation
   type: ValidationReport
   path: 12_validation/VAL-TASK-007-publish-queue-reconciliation.md
+- id: TASK-008
+  type: Task
+  path: 11_tasks/TASK-008-revenue-analytics-events.md
+- id: EP-TASK-008
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-008-revenue-analytics-events.md
+- id: CP-TASK-008
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-008-revenue-analytics-events.md
+- id: PROMPT-TASK-008-revenue-analytics-events
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-008-revenue-analytics-events.md
+- id: GOAL-IMPACT-TASK-008
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-008.md
+- id: VAL-TASK-008-revenue-analytics-events
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-008-revenue-analytics-events.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -339,3 +360,35 @@ edges:
 - from: VAL-TASK-007-publish-queue-reconciliation
   type: validates
   to: TASK-007
+
+
+- from: TASK-008
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-008
+  type: implements
+  to: FEAT-007
+- from: TASK-008
+  type: decomposes_into
+  to: EP-TASK-008
+- from: TASK-008
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-008
+- from: EP-TASK-008
+  type: derives_from
+  to: TASK-008
+- from: EP-TASK-008
+  type: generates
+  to: PROMPT-TASK-008-revenue-analytics-events
+- from: EP-TASK-008
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-008-revenue-analytics-events
+  type: derives_from
+  to: EP-TASK-008
+- from: PROMPT-TASK-008-revenue-analytics-events
+  type: included_in_context
+  to: CP-TASK-008
+- from: VAL-TASK-008-revenue-analytics-events
+  type: validates
+  to: TASK-008
