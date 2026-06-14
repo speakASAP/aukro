@@ -5,7 +5,7 @@ process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://log
 const { OffersService } = require('./offers.service');
 const { OfferPolicyService } = require('./policy/offer-policy.service');
 
-const fresh = '2026-06-13T12:00:00.000Z';
+const fresh = '2026-06-14T12:00:00.000Z';
 
 function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };

@@ -161,6 +161,24 @@ nodes:
 - id: VAL-TASK-008-revenue-analytics-events
   type: ValidationReport
   path: 12_validation/VAL-TASK-008-revenue-analytics-events.md
+- id: TASK-009
+  type: Task
+  path: 11_tasks/TASK-009-operator-workbench-api.md
+- id: EP-TASK-009
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-009-operator-workbench-api.md
+- id: CP-TASK-009
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-009-operator-workbench-api.md
+- id: PROMPT-TASK-009-operator-workbench-api
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-009-operator-workbench-api.md
+- id: GOAL-IMPACT-TASK-009
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-009.md
+- id: VAL-TASK-009-operator-workbench-api
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-009-operator-workbench-api.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -392,3 +410,35 @@ edges:
 - from: VAL-TASK-008-revenue-analytics-events
   type: validates
   to: TASK-008
+
+
+- from: TASK-009
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-009
+  type: implements
+  to: GOAL-AUKRO-001
+- from: TASK-009
+  type: decomposes_into
+  to: EP-TASK-009
+- from: TASK-009
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-009
+- from: EP-TASK-009
+  type: derives_from
+  to: TASK-009
+- from: EP-TASK-009
+  type: generates
+  to: PROMPT-TASK-009-operator-workbench-api
+- from: EP-TASK-009
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-009-operator-workbench-api
+  type: derives_from
+  to: EP-TASK-009
+- from: PROMPT-TASK-009-operator-workbench-api
+  type: included_in_context
+  to: CP-TASK-009
+- from: VAL-TASK-009-operator-workbench-api
+  type: validates
+  to: TASK-009
