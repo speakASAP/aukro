@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, LoggerService } from '@aukro/shared';
 import {
+  WorkbenchBulkPreviewQuery,
+  WorkbenchBulkPreviewResponse,
   WorkbenchMetricSummary,
   WorkbenchOfferDetailResponse,
   WorkbenchQuery,
@@ -46,6 +48,35 @@ export class WorkbenchService {
       filters: this.safeFilters(query),
       items,
       counts: this.countItems(items),
+    };
+  }
+
+  async getBulkPreview(query: WorkbenchBulkPreviewQuery = {}): Promise<WorkbenchBulkPreviewResponse> {
+    const queue = await this.getReviewQueue(query);
+    const type = this.safeReviewType(query.type);
+    const minPriority = this.safePriority(query.minPriority);
+    const limit = this.safeLimit(query.limit);
+    const candidates = queue.items.filter((item) => {
+      if (type && item.type !== type) return false;
+      if (minPriority && this.priorityRank(item.priority) < this.priorityRank(minPriority)) return false;
+      return true;
+    });
+    const items = candidates.slice(0, limit);
+
+    return {
+      success: true,
+      generatedAt: new Date().toISOString(),
+      filters: {
+        ...this.safeFilters(query),
+        ...(type ? { type } : {}),
+        ...(minPriority ? { minPriority } : {}),
+        limit,
+      },
+      totalCandidates: candidates.length,
+      returnedCount: items.length,
+      remainingCount: Math.max(candidates.length - items.length, 0),
+      counts: this.countItems(candidates),
+      items,
     };
   }
 
@@ -264,6 +295,33 @@ export class WorkbenchService {
 
   private safeFilters(query: WorkbenchQuery): WorkbenchQuery {
     return query.accountId ? { accountId: String(query.accountId) } : {};
+  }
+
+  private safeReviewType(value: any): WorkbenchReviewItemType | undefined {
+    const type = String(value || '');
+    return this.reviewTypes().includes(type as WorkbenchReviewItemType) ? type as WorkbenchReviewItemType : undefined;
+  }
+
+  private safePriority(value: any): WorkbenchReviewPriority | undefined {
+    const priority = String(value || '');
+    return ['low', 'medium', 'high'].includes(priority) ? priority as WorkbenchReviewPriority : undefined;
+  }
+
+  private safeLimit(value: any): number {
+    const numeric = Number(value || 25);
+    if (!Number.isFinite(numeric) || numeric < 1) return 25;
+    return Math.min(Math.floor(numeric), 100);
+  }
+
+  private reviewTypes(): WorkbenchReviewItemType[] {
+    return [
+      'draft_blocked',
+      'ai_review_required',
+      'publish_blocked',
+      'reconciliation_drift',
+      'blocked_revenue',
+      'order_forwarding_failed',
+    ];
   }
 
   private asRecord(value: any): Record<string, any> {

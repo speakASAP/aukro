@@ -179,6 +179,25 @@ nodes:
 - id: VAL-TASK-009-operator-workbench-api
   type: ValidationReport
   path: 12_validation/VAL-TASK-009-operator-workbench-api.md
+
+- id: TASK-010
+  type: Task
+  path: 11_tasks/TASK-010-workbench-bulk-preview.md
+- id: EP-TASK-010
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-010-workbench-bulk-preview.md
+- id: CP-TASK-010
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-010-workbench-bulk-preview.md
+- id: PROMPT-TASK-010-workbench-bulk-preview
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-010-workbench-bulk-preview.md
+- id: GOAL-IMPACT-TASK-010
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-010.md
+- id: VAL-TASK-010-workbench-bulk-preview
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-010-workbench-bulk-preview.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -442,3 +461,35 @@ edges:
 - from: VAL-TASK-009-operator-workbench-api
   type: validates
   to: TASK-009
+
+
+- from: TASK-010
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-010
+  type: implements
+  to: GOAL-AUKRO-001
+- from: TASK-010
+  type: decomposes_into
+  to: EP-TASK-010
+- from: TASK-010
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-010
+- from: EP-TASK-010
+  type: derives_from
+  to: TASK-010
+- from: EP-TASK-010
+  type: generates
+  to: PROMPT-TASK-010-workbench-bulk-preview
+- from: EP-TASK-010
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-010-workbench-bulk-preview
+  type: derives_from
+  to: EP-TASK-010
+- from: PROMPT-TASK-010-workbench-bulk-preview
+  type: included_in_context
+  to: CP-TASK-010
+- from: VAL-TASK-010-workbench-bulk-preview
+  type: validates
+  to: TASK-010

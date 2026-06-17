@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@aukro/shared';
 import { WorkbenchService } from './workbench.service';
-import { WorkbenchQuery } from './workbench.types';
+import { WorkbenchBulkPreviewQuery, WorkbenchQuery } from './workbench.types';
 
 @Controller('workbench')
 @UseGuards(JwtAuthGuard)
@@ -16,6 +16,11 @@ export class WorkbenchController {
   @Get('review-queue')
   async reviewQueue(@Query() query: WorkbenchQuery) {
     return this.workbenchService.getReviewQueue(query);
+  }
+
+  @Get('bulk-preview')
+  async bulkPreview(@Query() query: WorkbenchBulkPreviewQuery) {
+    return this.workbenchService.getBulkPreview(query);
   }
 
   @Get('offers/:id')

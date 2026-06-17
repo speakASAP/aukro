@@ -80,6 +80,21 @@ async function run() {
   assert.ok(queue.items.every((item: any) => item.accountId === account.id));
   assert.equal(JSON.stringify(queue).includes('customer@example.test'), false);
 
+  const preview = await service.getBulkPreview({ accountId: account.id, minPriority: 'high', limit: '2' });
+  assert.equal(preview.totalCandidates, 4);
+  assert.equal(preview.returnedCount, 2);
+  assert.equal(preview.remainingCount, 2);
+  assert.equal(preview.filters.limit, 2);
+  assert.ok(preview.items.every((item: any) => item.accountId === account.id));
+  assert.ok(preview.items.every((item: any) => item.priority === 'high'));
+  assert.equal(JSON.stringify(preview).includes('customer@example.test'), false);
+
+  const typedPreview = await service.getBulkPreview({ type: 'ai_review_required', minPriority: 'medium', limit: '200' });
+  assert.equal(typedPreview.filters.type, 'ai_review_required');
+  assert.equal(typedPreview.filters.limit, 100);
+  assert.equal(typedPreview.totalCandidates, 1);
+  assert.equal(typedPreview.items[0].type, 'ai_review_required');
+
   const detail = await service.getOfferDetail(offer.id);
   assert.equal(detail.offer.id, offer.id);
   assert.equal(detail.offer.draft?.draftStatus, 'blocked');

@@ -2,6 +2,12 @@ export interface WorkbenchQuery {
   accountId?: string;
 }
 
+export interface WorkbenchBulkPreviewQuery extends WorkbenchQuery {
+  type?: WorkbenchReviewItemType | string;
+  minPriority?: WorkbenchReviewPriority | string;
+  limit?: number | string;
+}
+
 export interface WorkbenchMetricSummary {
   accounts: {
     active: number;
@@ -82,4 +88,16 @@ export interface WorkbenchOfferDetailResponse {
     revenueAnalytics?: Record<string, any>;
     linkedOrders: Array<Record<string, any>>;
   };
+}
+
+
+export interface WorkbenchBulkPreviewResponse {
+  success: boolean;
+  generatedAt: string;
+  filters: WorkbenchBulkPreviewQuery;
+  totalCandidates: number;
+  returnedCount: number;
+  remainingCount: number;
+  counts: Record<WorkbenchReviewItemType, number>;
+  items: WorkbenchReviewItem[];
 }

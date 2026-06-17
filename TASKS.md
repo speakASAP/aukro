@@ -10,6 +10,7 @@
 
 ## Completed
 <!-- Coordinator-append-only -->
+- 2026-06-15 task-010-workbench-bulk-preview: added read-only bulk preview API with safe account/type/priority filters, limit capping, synthetic tests, and IPS validation package for roadmap Stage 6.
 - 2026-06-14 task-009-operator-workbench-api: added read-only workbench summary, review queue, offer detail API, synthetic tests, and IPS validation package for roadmap Stage 6.
 - 2026-06-13 task-008-revenue-analytics-events: added local revenue analytics records, masked recommendation events, optional logging delivery, synthetic tests, and IPS validation package for FEAT-007.
 - 2026-06-13 task-007-publish-queue-reconciliation: added local publish queue, idempotent attempt records, publish policy snapshots, reconciliation drift reports, synthetic tests, and IPS validation package for FEAT-008.
