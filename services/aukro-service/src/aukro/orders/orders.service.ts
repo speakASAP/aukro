@@ -1,6 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, LoggerService, OrderClientService } from '@aukro/shared';
 
+type CentralOrderItem = {
+  productId: string;
+  sku?: string | null;
+  title: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+};
+
 @Injectable()
 export class OrdersService {
   private readonly logger: LoggerService;
@@ -39,23 +48,8 @@ export class OrdersService {
       data,
     });
 
-    // Forward to orders-microservice
     try {
-      // Parse items from rawData if available
-      let items: any[] = [];
-      if (order.rawData && typeof order.rawData === 'object') {
-        const rawData = order.rawData as any;
-        if (Array.isArray(rawData.items)) {
-          items = rawData.items.map((item: any) => ({
-            productId: item.productId || null,
-            sku: item.sku || null,
-            title: item.title || item.name || 'Unknown',
-            quantity: item.quantity || 1,
-            unitPrice: parseFloat(item.price || item.unitPrice || '0'),
-            totalPrice: parseFloat(item.totalPrice || (item.price || item.unitPrice || '0') * (item.quantity || 1)),
-          }));
-        }
-      }
+      const items = await this.buildCentralOrderItems(order);
 
       const centralOrder = await this.orderClient.createOrder({
         externalOrderId: order.aukroOrderId,
@@ -94,14 +88,12 @@ export class OrdersService {
     try {
       this.logger.log('Received Aukro webhook', { data });
 
-      // Parse webhook data (format depends on Aukro API)
-      // This is a generic implementation - adjust based on actual Aukro webhook format
+      // Real Aukro webhook shape is [UNKNOWN]; keep parsing to the current synthetic/internal contract.
       const {
         orderId: aukroOrderId,
         accountId,
         customerEmail,
         customerPhone,
-        items = [],
         total,
         currency = 'CZK',
         status = 'pending',
@@ -111,14 +103,12 @@ export class OrdersService {
         throw new Error('orderId is required in webhook data');
       }
 
-      // Check if order already exists
       const existingOrder = await this.prisma.aukroOrder.findUnique({
         where: { aukroOrderId },
       });
 
       if (existingOrder) {
         this.logger.log(`Order ${aukroOrderId} already exists, updating status`);
-        // Update order status if changed
         if (existingOrder.status !== status) {
           await this.prisma.aukroOrder.update({
             where: { id: existingOrder.id },
@@ -128,10 +118,8 @@ export class OrdersService {
         return existingOrder;
       }
 
-      // Find account if accountId not provided
       let finalAccountId = accountId;
       if (!finalAccountId) {
-        // Try to find active account (if only one account)
         const accounts = await this.prisma.aukroAccount.findMany({
           where: { isActive: true },
         });
@@ -142,7 +130,6 @@ export class OrdersService {
         }
       }
 
-      // Create order
       const order = await this.create({
         accountId: finalAccountId,
         aukroOrderId,
@@ -151,7 +138,10 @@ export class OrdersService {
         total: parseFloat(total) || 0,
         currency,
         status,
-        rawData: data,
+        rawData: {
+          ...data,
+          items: this.extractRawOrderItems(data),
+        },
       });
 
       this.logger.log(`Order created from webhook: ${order.id}`);
@@ -161,5 +151,147 @@ export class OrdersService {
       throw error;
     }
   }
-}
 
+  private async buildCentralOrderItems(order: any): Promise<CentralOrderItem[]> {
+    const rawData = this.asRecord(order.rawData);
+    const rawItems = this.extractRawOrderItems(rawData);
+
+    if (rawItems.length === 0) {
+      throw new Error(`Aukro order ${order.aukroOrderId} has no line items to forward`);
+    }
+
+    const items: CentralOrderItem[] = [];
+    for (const rawItem of rawItems) {
+      items.push(await this.buildCentralOrderItem(order, this.asRecord(rawItem)));
+    }
+
+    return items;
+  }
+
+  private async buildCentralOrderItem(order: any, item: Record<string, any>): Promise<CentralOrderItem> {
+    const productId = await this.resolveCatalogProductId(order, item);
+    const quantity = this.positiveNumber(item.quantity ?? item.qty, 1);
+    const unitPrice = this.numberValue(item.unitPrice ?? item.price ?? item.amount, 0);
+    const totalPrice = this.numberValue(item.totalPrice ?? item.total ?? item.lineTotal, unitPrice * quantity);
+
+    return {
+      productId,
+      sku: this.optionalString(item.sku),
+      title: this.optionalString(item.title ?? item.name) || 'Unknown',
+      quantity,
+      unitPrice,
+      totalPrice,
+    };
+  }
+
+  private async resolveCatalogProductId(order: any, item: Record<string, any>): Promise<string> {
+    const explicitCatalogProductId = this.explicitCatalogProductId(item);
+    if (explicitCatalogProductId) {
+      return explicitCatalogProductId;
+    }
+
+    const offerIdentifiers = this.offerIdentifiers(item);
+    if (offerIdentifiers.length === 0) {
+      throw new Error(`Aukro order ${order.aukroOrderId} item is missing an Aukro offer/listing identifier`);
+    }
+
+    const offer = await this.prisma.aukroOffer.findFirst({
+      where: {
+        accountId: order.accountId,
+        OR: offerIdentifiers.flatMap((identifier) => {
+          const conditions: any[] = [{ aukroOfferId: identifier }];
+          if (this.isUuid(identifier)) {
+            conditions.push({ id: identifier });
+          }
+          return conditions;
+        }),
+      },
+      select: {
+        id: true,
+        aukroOfferId: true,
+        productId: true,
+      },
+    });
+
+    if (!offer?.productId) {
+      throw new Error(`Aukro order ${order.aukroOrderId} item could not be mapped to a Catalog product via offer/listing ${offerIdentifiers.join(', ')}`);
+    }
+
+    return String(offer.productId);
+  }
+
+  private extractRawOrderItems(rawData: any): any[] {
+    const raw = this.asRecord(rawData);
+    const directItems = raw.items;
+    const orderItems = this.asRecord(raw.order).items;
+    const orderLines = raw.orderItems;
+    const lines = raw.lines;
+
+    for (const candidate of [directItems, orderItems, orderLines, lines]) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+
+    return [];
+  }
+
+  private explicitCatalogProductId(item: Record<string, any>): string | undefined {
+    const namedCanonical = this.optionalString(item.catalogProductId ?? item.canonicalProductId);
+    if (namedCanonical) {
+      return namedCanonical;
+    }
+
+    const productId = this.optionalString(item.productId);
+    if (!productId) {
+      return undefined;
+    }
+
+    const productIdType = this.optionalString(item.productIdType ?? item.productIdSource ?? item.productSource);
+    if (productIdType && ['catalog', 'catalog-product', 'catalog_product', 'canonical'].includes(productIdType.toLowerCase())) {
+      return productId;
+    }
+
+    return item.isCatalogProductId === true ? productId : undefined;
+  }
+
+  private offerIdentifiers(item: Record<string, any>): string[] {
+    const candidates = [
+      item.offerId,
+      item.aukroOfferId,
+      item.listingId,
+      item.aukroListingId,
+      item.externalOfferId,
+      item.externalListingId,
+      item.productId,
+    ];
+
+    return Array.from(new Set(candidates.map((candidate) => this.optionalString(candidate)).filter(Boolean) as string[]));
+  }
+
+  private asRecord(value: any): Record<string, any> {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  private optionalString(value: any): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || undefined;
+  }
+
+  private numberValue(value: any, fallback: number): number {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private positiveNumber(value: any, fallback: number): number {
+    const parsed = this.numberValue(value, fallback);
+    return parsed > 0 ? parsed : fallback;
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+}
