@@ -216,7 +216,7 @@ export class UiController {
       <a class="brand" href="/"><span class="badge">A</span><span>Aukro Publisher Alfares</span></a>
       <nav class="nav">
         <a class="button" href="/">Uvod</a>
-        <a class="button primary" href="/aukro/dashboard">Войти в дашборд для клиента</a>
+        <a class="button primary" href="/dashboard">Войти в дашборд для клиента</a>
       </nav>
     </header>
 
@@ -224,7 +224,7 @@ export class UiController {
       <div>
         <h1>Automatizovane publikovani produktu na Aukro</h1>
         <p class="lead">Sluzba bere produkty z katalogu dostupneho zbozi, kontroluje skladovou dostupnost, cenu a podklady pro inzerat a pripravi jejich publikovani na Aukro v automatizovanem rezimu.</p>
-        <div class="toolbar"><a class="button primary" href="/aukro/dashboard">Войти в дашборд для клиента</a><a class="button" href="/aukro/dashboard#registrace">Registrovat klienta</a></div>
+        <div class="toolbar"><a class="button primary" href="/dashboard">Войти в дашборд для клиента</a><a class="button" href="/dashboard#registrace">Registrovat klienta</a></div>
       </div>
       <div class="hero-panel">
         <div class="pipeline">
