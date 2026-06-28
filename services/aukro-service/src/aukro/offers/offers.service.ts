@@ -1,8 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { PrismaService, LoggerService, CatalogClientService, WarehouseClientService, LoggingClientService } from '@aukro/shared';
-import { AiClientService } from '@aukro/shared/clients/ai-client.service';
-import { NotificationsClientService } from '@aukro/shared/clients/notifications-client.service';
+import {
+  AiClientService,
+  CatalogClientService,
+  LoggerService,
+  LoggingClientService,
+  NotificationsClientService,
+  PrismaService,
+  WarehouseClientService,
+} from "@aukro/shared";
 import {
   CatalogDraftMetadata,
   CatalogDraftSourceSnapshot,
@@ -464,7 +470,7 @@ export class OffersService {
 
     await this.prisma.aukroOffer.update({
       where: { id: offer.id },
-      data: { rawData: { ...rawData, publishQueue: queue } },
+      data: { rawData: { ...rawData, publishQueue: queue } as any },
     });
 
     return {
@@ -520,7 +526,7 @@ export class OffersService {
     const reconciliation = this.appendReconciliationReport(rawData, report);
     await this.prisma.aukroOffer.update({
       where: { id: offer.id },
-      data: { rawData: { ...rawData, reconciliation } },
+      data: { rawData: { ...rawData, reconciliation } as any },
     });
 
     return {
@@ -585,7 +591,7 @@ export class OffersService {
 
     await this.prisma.aukroOffer.update({
       where: { id: offer.id },
-      data: { rawData: { ...rawData, revenueAnalytics: analytics } },
+      data: { rawData: { ...rawData, revenueAnalytics: analytics } as any },
     });
 
     return {

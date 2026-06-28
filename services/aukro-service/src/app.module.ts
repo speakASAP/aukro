@@ -8,6 +8,7 @@ import { join } from 'path';
 import { AukroModule } from './aukro/aukro.module';
 import { PrismaModule, LoggerModule, HealthModule, RabbitMQModule } from '@aukro/shared';
 import { HealthController } from './health/health.controller';
+import { UiController } from './ui/ui.controller';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { HealthController } from './health/health.controller';
     RabbitMQModule,
     AukroModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, UiController],
 })
 export class AppModule {}
 

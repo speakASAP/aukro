@@ -37,7 +37,10 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('aukro', {
-    exclude: [{ path: 'health', method: RequestMethod.GET }],
+    exclude: [
+      { path: '', method: RequestMethod.GET },
+      { path: 'health', method: RequestMethod.GET },
+    ],
   });
 
   const port = configService.get<string>('AUKRO_SERVICE_PORT') || '3700';

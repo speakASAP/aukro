@@ -31,7 +31,7 @@ RUN cp -r /app/shared/node_modules/.prisma/client/. /app/services/aukro-service/
 
 # Build service
 WORKDIR /app/services/aukro-service
-RUN npm run build
+RUN rm -rf dist && npm run build
 
 # Production stage - copy only what's needed
 FROM node:24-slim
