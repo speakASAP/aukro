@@ -10,6 +10,7 @@ import { WorkbenchModule } from './workbench/workbench.module';
 
 @Module({
   imports: [AccountsModule, OffersModule, OrdersModule, WorkbenchModule],
+  exports: [OffersModule],
 })
 export class AukroModule {}
 

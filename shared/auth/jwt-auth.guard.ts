@@ -42,7 +42,7 @@ export class JwtAuthGuard implements CanActivate {
       const tokenExtractDuration = Date.now() - tokenExtractStartTime;
 
       if (!token) {
-        throw new UnauthorizedException('No token provided');
+        return false;
       }
 
       // Validate JWT token locally (fast, no HTTP calls)
@@ -55,7 +55,7 @@ export class JwtAuthGuard implements CanActivate {
         
         // Check if token is expired (jwt.verify already does this, but double-check)
         if (decoded.exp && decoded.exp < Date.now() / 1000) {
-          throw new UnauthorizedException('Token expired');
+          return false;
         }
 
         const validationDuration = Date.now() - validationStartTime;
@@ -104,6 +104,8 @@ export class JwtAuthGuard implements CanActivate {
           isVerified: decoded.isVerified !== false && decoded.user?.isVerified !== false, // Default to true if not specified
           createdAt: decoded.createdAt || decoded.user?.createdAt || decoded.iat ? new Date(decoded.iat * 1000).toISOString() : undefined,
           updatedAt: decoded.updatedAt || decoded.user?.updatedAt,
+          roles: this.stringArray(decoded.roles || decoded.user?.roles || decoded.role || decoded.scope || decoded.scopes),
+          permissions: this.stringArray(decoded.permissions || decoded.user?.permissions || decoded.permission),
         };
 
         // Validate that we have at least an ID (email can be optional for some tokens)
@@ -114,7 +116,7 @@ export class JwtAuthGuard implements CanActivate {
               extractedUserId: userId,
             });
           }
-          throw new UnauthorizedException('Invalid token payload: missing user ID');
+          return false;
         }
 
         // Email is preferred but not strictly required if we have a valid ID
@@ -161,11 +163,11 @@ export class JwtAuthGuard implements CanActivate {
 
         // Throw UnauthorizedException for any JWT verification errors
         if (jwtError.name === 'TokenExpiredError') {
-          throw new UnauthorizedException('Token expired');
+          return false;
         } else if (jwtError.name === 'JsonWebTokenError') {
-          throw new UnauthorizedException('Invalid token');
+          return false;
         } else {
-          throw new UnauthorizedException('Token validation failed');
+          return false;
         }
       }
     } catch (error: any) {
@@ -186,8 +188,15 @@ export class JwtAuthGuard implements CanActivate {
         throw error;
       }
       // If any other error occurs, throw UnauthorizedException
-      throw new UnauthorizedException('Authentication failed');
+      return false;
     }
+  }
+
+  private stringArray(value: any): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
+    if (typeof value === 'string') return value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
+    return [];
   }
 
   private extractTokenFromHeader(request: any): string | undefined {

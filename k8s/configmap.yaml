@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: aukro-service-config
+  name: aukro-config
   namespace: statex-apps
   labels:
     app: aukro-service
@@ -10,25 +10,27 @@ data:
   NODE_ENV: "production"
   SERVICE_NAME: "aukro-service"
   DOMAIN: "aukro.alfares.cz"
-  PORT: "3700"
   AUKRO_SERVICE_PORT: "3700"
-  # Add environment variables from .env that are non-sensitive (no secrets, API keys, passwords)
-  # Examples:
-  # DATABASE_POOL_SIZE: "10"
-  # LOG_LEVEL: "info"
-  DB_HOST: "192.168.88.53"
+  AUKRO_ADMIN_EMAILS: "test@example.com"
+  AUKRO_USE_SANDBOX: "false"
+  AUTH_SERVICE_URL: "http://auth-microservice:3370"
+  CATALOG_SERVICE_URL: "http://catalog-microservice:3200"
+  WAREHOUSE_SERVICE_URL: "http://warehouse-microservice:3201"
+  ORDER_SERVICE_URL: "http://orders-microservice:3203"
+  NOTIFICATION_SERVICE_URL: "http://notifications-microservice:3368"
+  LOGGING_SERVICE_URL: "http://logging-microservice:3367"
+  PAYMENT_SERVICE_URL: "https://payments.alfares.cz"
+  PAYMENT_APPLICATION_ID: "aukro-service"
+  PAYMENT_CALLBACK_URL: "https://aukro.alfares.cz/api/webhooks/payment-result"
+  PAYMENT_CANCEL_URL: "https://aukro.alfares.cz/payment-result?status=cancelled"
+  PAYMENT_SUCCESS_URL: "https://aukro.alfares.cz/payment-result?status=completed"
+  API_GATEWAY_PORT: "3701"
+  GATEWAY_PROXY_PORT: "3704"
+  GATEWAY_TIMEOUT: "30000"
+  HTTP_TIMEOUT: "30000"
+  CORS_ORIGIN: "https://aukro.alfares.cz"
+  RABBITMQ_URL: "amqp://guest:guest@statex_rabbitmq:5672"
+  DB_HOST: "db-server-postgres"
   DB_PORT: "5432"
   DB_USER: "dbadmin"
   DB_NAME: "aukro"
-  DB_SYNC: "false"
-  DB_AUTO_CREATE: "true"
-  HTTP_TIMEOUT: "5000"
-  AI_SERVICE_URL: "http://ai-microservice:3380"
-  LEADS_SERVICE_URL: "http://leads-microservice:4400"
-  MARKETING_SERVICE_URL: "http://marketing-microservice:4600"
-  MINIO_SERVICE_URL: "http://minio-microservice:9000"
-  NOTIFICATION_SERVICE_URL: "http://notifications-microservice:3368"
-  PAYMENT_SERVICE_URL: "http://payments-microservice:3468"
-  SUPPLIERS_SERVICE_URL: "http://suppliers-microservice:3202"
-  LOGGING_SERVICE_URL: "http://logging-microservice:3367"
-  # TIMEOUT_MS: "30000"
