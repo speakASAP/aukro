@@ -158,6 +158,11 @@ export class UiController {
 
   private renderShell({ page }: { page: 'landing' | 'dashboard' }): string {
     const isDashboard = page === 'dashboard';
+    const authBaseUrl = (process.env.HOSTED_AUTH_URL || 'https://auth.alfares.cz').replace(/\/$/, '');
+    const dashboardReturnUrl = process.env.AUKRO_DASHBOARD_URL || 'https://aukro.alfares.cz/dashboard';
+    const hostedLoginUrl = `${authBaseUrl}/login?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
+    const hostedRegisterUrl = `${authBaseUrl}/register?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
+
     return `<!doctype html>
 <html lang="cs">
 <head>
@@ -215,8 +220,7 @@ export class UiController {
     <header>
       <a class="brand" href="/"><span class="badge">A</span><span>Aukro Publisher Alfares</span></a>
       <nav class="nav">
-        <a class="button" href="/">Uvod</a>
-        <a class="button primary" href="/dashboard">Vstoupit do klientského dashboardu</a>
+        <a class="button primary" href="${hostedLoginUrl}">Vstoupit do klientského dashboardu</a>
       </nav>
     </header>
 
@@ -224,7 +228,7 @@ export class UiController {
       <div>
         <h1>Automatizovane publikovani produktu na Aukro</h1>
         <p class="lead">Sluzba bere produkty z katalogu dostupneho zbozi, kontroluje skladovou dostupnost, cenu a podklady pro inzerat a pripravi jejich publikovani na Aukro v automatizovanem rezimu.</p>
-        <div class="toolbar"><a class="button primary" href="/dashboard">Vstoupit do klientského dashboardu</a><a class="button" href="/dashboard#registrace">Registrovat klienta</a></div>
+        <div class="toolbar"><a class="button primary" href="${hostedLoginUrl}">Vstoupit do klientského dashboardu</a></div>
       </div>
       <div class="hero-panel">
         <div class="pipeline">
@@ -244,14 +248,9 @@ export class UiController {
     <section id="dashboard" class="app ${isDashboard ? '' : 'hidden'}">
       <div class="auth" id="authView">
         <div class="panel">
-          <div class="tabs"><button id="loginTab" class="active" type="button">Prihlaseni</button><button id="registerTab" type="button">Registrace</button></div>
-          <form id="authForm" class="form">
-            <label>E-mail<input id="email" type="email" autocomplete="email" value="test@example.com" required /></label>
-            <label>Heslo<input id="password" type="password" autocomplete="current-password" required /></label>
-            <div id="nameFields" class="hidden"><label>Jmeno<input id="firstName" type="text" autocomplete="given-name" /></label><label>Prijmeni<input id="lastName" type="text" autocomplete="family-name" /></label></div>
-            <button class="primary" type="submit" id="authSubmit">Prihlasit se</button>
-            <div class="message" id="authMessage"></div>
-          </form>
+          <h2>Prihlaseni pres Alfares Auth</h2>
+          <p class="hint">Prihlaseni, registrace a obnova pristupu probiha v centralnim auth-microservice. Po uspesnem prihlaseni se vratite zpet do Aukro dashboardu.</p>
+          <div class="toolbar"><a class="button primary" href="${hostedLoginUrl}">Prihlasit pres Auth</a><a class="button" href="${hostedRegisterUrl}">Registrovat pres Auth</a></div>
         </div>
         <div class="panel"><h2>Klientsky dashboard</h2><p class="hint">Po prihlaseni uvidite produkty z catalog-microservice a muzete z nich vytvorit Aukro publikaci. Admin uzivatel uvidi i sekci se spravou Alfares sluzeb.</p></div>
       </div>
@@ -273,7 +272,7 @@ export class UiController {
     </section>
   </main>
   <script>
-    const state = { mode: location.hash === '#registrace' ? 'register' : 'login', token: localStorage.getItem('aukroAccessToken') || '', me: null };
+    const state = { token: localStorage.getItem('aukroAccessToken') || '', me: null };
     const $ = (id) => document.getElementById(id);
     const page = document.body.dataset.page;
     const api = async (url, options = {}) => {
@@ -284,12 +283,14 @@ export class UiController {
       if (!response.ok) throw new Error(data.message || data.error?.message || 'Pozadavek selhal');
       return data;
     };
-    const setMode = (mode) => {
-      state.mode = mode;
-      $('loginTab')?.classList.toggle('active', mode === 'login');
-      $('registerTab')?.classList.toggle('active', mode === 'register');
-      $('nameFields')?.classList.toggle('hidden', mode !== 'register');
-      if ($('authSubmit')) $('authSubmit').textContent = mode === 'login' ? 'Prihlasit se' : 'Registrovat';
+    const consumeAuthFragment = () => {
+      const fragment = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
+      const accessToken = fragment.get('access_token');
+      if (!accessToken) return false;
+      state.token = accessToken;
+      localStorage.setItem('aukroAccessToken', accessToken);
+      history.replaceState(null, '', location.pathname + location.search);
+      return true;
     };
     const showClient = async () => {
       const me = await api('/aukro/ui/me');
@@ -335,22 +336,9 @@ export class UiController {
     };
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     if (page === 'dashboard') {
-      setMode(state.mode);
-      $('loginTab').addEventListener('click', () => setMode('login'));
-      $('registerTab').addEventListener('click', () => setMode('register'));
+      consumeAuthFragment();
       $('loadProducts').addEventListener('click', loadProducts);
       $('logout').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.reload(); });
-      $('authForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        $('authMessage').textContent = state.mode === 'login' ? 'Prihlasuji...' : 'Registruji...';
-        try {
-          const payload = { email: $('email').value.trim(), password: $('password').value, firstName: $('firstName').value.trim(), lastName: $('lastName').value.trim() };
-          const result = await api(state.mode === 'login' ? '/aukro/ui/auth/login' : '/aukro/ui/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-          state.token = result.accessToken;
-          localStorage.setItem('aukroAccessToken', state.token);
-          await showClient();
-        } catch (error) { $('authMessage').textContent = error.message; }
-      });
       if (state.token) showClient().catch(() => localStorage.removeItem('aukroAccessToken'));
     }
   </script>

@@ -1,6 +1,8 @@
 # Multi-stage build for Allegro Service
 FROM node:24-slim AS builder
 
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy shared package and install dependencies first
