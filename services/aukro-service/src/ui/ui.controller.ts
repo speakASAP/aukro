@@ -58,8 +58,36 @@ export class UiController {
 
     return {
       user,
-      account,
+      account: this.publicAccount(account),
       isAukroAdmin: this.isAukroAdmin(user),
+    };
+  }
+
+  @Get('ui/dashboard')
+  @UseGuards(JwtAuthGuard)
+  async dashboardData(@Req() req: any) {
+    const user = req.user as AuthUser;
+    const account = await this.ensureAukroAccount(user);
+    const [offers, orders] = await Promise.all([
+      this.prisma.aukroOffer.findMany({
+        where: { accountId: account.id },
+        orderBy: { updatedAt: 'desc' },
+        take: 24,
+      }),
+      this.prisma.aukroOrder.findMany({
+        where: { accountId: account.id },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+      }),
+    ]);
+
+    return {
+      user,
+      account: this.publicAccount(account),
+      isAukroAdmin: this.isAukroAdmin(user),
+      summary: this.dashboardSummary(offers, orders),
+      offers: offers.map((offer) => this.publicOffer(offer)),
+      orders: orders.map((order) => this.publicOrder(order)),
     };
   }
 
@@ -134,6 +162,77 @@ export class UiController {
     });
   }
 
+  private publicAccount(account: any) {
+    return {
+      id: account.id,
+      name: account.name,
+      email: account.email,
+      isActive: Boolean(account.isActive),
+      isLinkedToAukro: Boolean(account.apiKey),
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    };
+  }
+
+  private publicOffer(offer: any) {
+    const rawData = this.asRecord(offer.rawData);
+    const draft = this.asRecord(rawData.draft);
+    const publishQueue = this.asRecord(rawData.publishQueue);
+    const reconciliation = this.asRecord(rawData.reconciliation);
+
+    return {
+      id: offer.id,
+      accountId: offer.accountId,
+      productId: offer.productId,
+      aukroOfferId: offer.aukroOfferId,
+      title: offer.title,
+      description: offer.description,
+      price: this.numberOrNull(offer.price),
+      stockQuantity: offer.stockQuantity,
+      isActive: Boolean(offer.isActive),
+      draftStatus: draft.draftStatus || null,
+      policyReasonCodes: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
+      publishStatus: publishQueue.status || null,
+      reconciliationStatus: this.asRecord(reconciliation.lastReport).status || null,
+      updatedAt: offer.updatedAt,
+    };
+  }
+
+  private publicOrder(order: any) {
+    return {
+      id: order.id,
+      aukroOrderId: order.aukroOrderId,
+      orderId: order.orderId,
+      customerEmail: order.customerEmail,
+      total: this.numberOrNull(order.total),
+      currency: order.currency,
+      status: order.status,
+      forwarded: Boolean(order.forwarded),
+      createdAt: order.createdAt,
+    };
+  }
+
+  private dashboardSummary(offers: any[], orders: any[]) {
+    return {
+      offersTotal: offers.length,
+      activeOffers: offers.filter((offer) => offer.isActive).length,
+      drafts: offers.filter((offer) => Boolean(this.asRecord(this.asRecord(offer.rawData).draft).draftVersion)).length,
+      blockedDrafts: offers.filter((offer) => this.asRecord(this.asRecord(offer.rawData).draft).draftStatus === 'blocked').length,
+      ordersTotal: orders.length,
+      unforwardedOrders: orders.filter((order) => !order.forwarded).length,
+    };
+  }
+
+  private asRecord(value: any): Record<string, any> {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  private numberOrNull(value: any): number | null {
+    if (value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   private isAukroAdmin(user: AuthUser): boolean {
     const email = (user.email || '').toLowerCase();
     const configuredEmails = (process.env.AUKRO_ADMIN_EMAILS || 'test@example.com')
@@ -202,7 +301,19 @@ export class UiController {
     .tabs button.active { border-color: var(--ink); background: var(--ink); color: #fff; }
     .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
     .toolbar input { max-width: 320px; }
+    .dashboard-head { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(320px, .9fr); gap: 16px; margin-bottom: 16px; }
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfdfd; }
+    .metric strong { display: block; font-size: 24px; line-height: 1; }
+    .metric span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 720; }
+    .status-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; }
+    .status-dot { width: 10px; height: 10px; border-radius: 99px; background: var(--warn); }
+    .status-dot.ok { background: var(--ok); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
     .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .list { display: grid; gap: 10px; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfdfd; }
+    .row-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
     .product { min-height: 210px; display: grid; gap: 10px; align-content: start; }
     .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px; }
     .pill { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; background: #fbfdfd; }
@@ -212,7 +323,7 @@ export class UiController {
     .services { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .service { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfdfd; }
     .hidden { display: none !important; }
-    @media (max-width: 900px) { .hero, .auth { grid-template-columns: 1fr; } .section, .grid, .services { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } .shell { padding: 18px; } }
+    @media (max-width: 900px) { .hero, .auth, .dashboard-head { grid-template-columns: 1fr; } .section, .grid, .services, .metrics { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } .shell { padding: 18px; } }
   </style>
 </head>
 <body data-page="${page}">
@@ -246,23 +357,45 @@ export class UiController {
     </section>
 
     <section id="dashboard" class="app ${isDashboard ? '' : 'hidden'}">
-      <div class="auth" id="authView">
-        <div class="panel">
-          <h2>Prihlaseni pres Alfares Auth</h2>
-          <p class="hint">Prihlaseni, registrace a obnova pristupu probiha v centralnim auth-microservice. Po uspesnem prihlaseni se vratite zpet do Aukro dashboardu.</p>
-          <div class="toolbar"><a class="button primary" href="${hostedLoginUrl}">Prihlasit pres Auth</a><a class="button" href="${hostedRegisterUrl}">Registrovat pres Auth</a></div>
-        </div>
-        <div class="panel"><h2>Klientsky dashboard</h2><p class="hint">Po prihlaseni uvidite produkty z catalog-microservice a muzete z nich vytvorit Aukro publikaci. Admin uzivatel uvidi i sekci se spravou Alfares sluzeb.</p></div>
+      <div class="panel" id="authView">
+        <h2>Overuji prihlaseni</h2>
+        <p class="hint">Pro vstup do klientského dashboardu budete presmerovani do Alfares Auth.</p>
       </div>
 
       <div id="clientView" class="hidden">
-        <div class="panel">
-          <h2>Produkty k publikovani</h2>
-          <p class="hint" id="userLine"></p>
-          <div class="toolbar"><input id="search" type="search" placeholder="Hledat v katalogu" /><button id="loadProducts" type="button">Nacist produkty</button><button id="logout" type="button">Odhlasit</button></div>
-          <div class="message" id="catalogMessage"></div>
-          <div class="grid" id="products"></div>
+        <div class="dashboard-head">
+          <div class="panel">
+            <h2>Aukro klientsky dashboard</h2>
+            <p class="hint" id="userLine"></p>
+            <div class="status-line"><span class="status-dot" id="linkDot"></span><strong id="accountLink">Aukro ucet se nacita</strong></div>
+            <div class="meta" id="accountMeta"></div>
+            <div class="toolbar"><button id="logout" type="button">Odhlasit</button></div>
+          </div>
+          <div class="panel">
+            <h2>Prehled</h2>
+            <div class="metrics" id="metrics"></div>
+          </div>
         </div>
+
+        <div class="workspace">
+          <div class="panel">
+            <h2>Produkty k prodeji na Aukro</h2>
+            <div class="toolbar"><input id="search" type="search" placeholder="Hledat v katalogu" /><button id="loadProducts" type="button">Nacist produkty</button></div>
+            <div class="message" id="catalogMessage"></div>
+            <div class="grid" id="products"></div>
+          </div>
+          <div class="panel">
+            <h2>Moje Aukro nabidky a drafty</h2>
+            <div class="message" id="offersMessage"></div>
+            <div class="list" id="offers"></div>
+          </div>
+          <div class="panel">
+            <h2>Objednavky z Aukro</h2>
+            <div class="message" id="ordersMessage"></div>
+            <div class="list" id="orders"></div>
+          </div>
+        </div>
+
         <div class="admin panel" id="adminView">
           <h2>Admin sekce Alfares sluzeb</h2>
           <p class="hint">Viditelne pouze pro spravce Aukro sluzby.</p>
@@ -272,9 +405,10 @@ export class UiController {
     </section>
   </main>
   <script>
-    const state = { token: localStorage.getItem('aukroAccessToken') || '', me: null };
+    const state = { token: localStorage.getItem('aukroAccessToken') || '', me: null, dashboard: null };
     const $ = (id) => document.getElementById(id);
     const page = document.body.dataset.page;
+    const hostedLoginUrl = '${hostedLoginUrl}';
     const api = async (url, options = {}) => {
       const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
       if (state.token) headers.Authorization = 'Bearer ' + state.token;
@@ -286,20 +420,61 @@ export class UiController {
     const consumeAuthFragment = () => {
       const fragment = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
       const accessToken = fragment.get('access_token');
+      const returnedState = fragment.get('state');
       if (!accessToken) return false;
+      if (returnedState && returnedState !== 'aukro-dashboard') {
+        history.replaceState(null, '', location.pathname + location.search);
+        return false;
+      }
       state.token = accessToken;
       localStorage.setItem('aukroAccessToken', accessToken);
       history.replaceState(null, '', location.pathname + location.search);
       return true;
     };
+    const redirectToAuth = () => {
+      localStorage.removeItem('aukroAccessToken');
+      location.replace(hostedLoginUrl);
+    };
     const showClient = async () => {
-      const me = await api('/aukro/ui/me');
-      state.me = me;
+      const dashboard = await api('/aukro/ui/dashboard');
+      state.dashboard = dashboard;
+      state.me = dashboard;
       $('authView').classList.add('hidden');
       $('clientView').classList.remove('hidden');
-      $('userLine').textContent = 'Prihlasen: ' + (me.user.email || me.user.id) + ' | Aukro ucet: ' + me.account.name;
-      await loadProducts();
-      if (me.isAukroAdmin) await loadAdmin();
+      renderDashboard(dashboard);
+      loadProducts().catch((error) => {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = error.message || 'Produkty se nepodarilo nacist.';
+      });
+      if (dashboard.isAukroAdmin) {
+        loadAdmin().catch(() => {
+          $('adminView').style.display = 'none';
+        });
+      }
+    };
+    const renderDashboard = (dashboard) => {
+      const account = dashboard.account || {};
+      const summary = dashboard.summary || {};
+      $('userLine').textContent = 'Prihlasen: ' + (dashboard.user.email || dashboard.user.id) + ' | Klientsky ucet: ' + (account.name || account.email || account.id);
+      $('linkDot').classList.toggle('ok', Boolean(account.isLinkedToAukro));
+      $('accountLink').textContent = account.isLinkedToAukro ? 'Aukro ucet je pripojeny' : 'Aukro API ucet zatim neni pripojeny';
+      $('accountMeta').innerHTML = '<span class="pill">' + escapeHtml(account.email || 'email nezadan') + '</span><span class="pill">' + (account.isActive ? 'aktivni' : 'neaktivni') + '</span><span class="pill">ID ' + escapeHtml(account.id || '-') + '</span>';
+      $('metrics').innerHTML = metric(summary.offersTotal || 0, 'nabidky celkem') + metric(summary.activeOffers || 0, 'aktivni nabidky') + metric(summary.drafts || 0, 'drafty') + metric(summary.blockedDrafts || 0, 'blokovane drafty') + metric(summary.ordersTotal || 0, 'objednavky') + metric(summary.unforwardedOrders || 0, 'nepredane objednavky');
+      renderOffers(dashboard.offers || []);
+      renderOrders(dashboard.orders || []);
+    };
+    const metric = (value, label) => '<div class="metric"><strong>' + escapeHtml(value) + '</strong><span>' + escapeHtml(label) + '</span></div>';
+    const renderOffers = (offers) => {
+      $('offersMessage').textContent = offers.length ? 'Nalezeny Aukro nabidky a pripravene drafty.' : 'Zatim nemate zadne Aukro nabidky ani drafty.';
+      $('offers').innerHTML = offers.map((offer) => {
+        const stateLabel = offer.aukroOfferId ? 'Aukro ID: ' + offer.aukroOfferId : (offer.draftStatus ? 'Draft: ' + offer.draftStatus : 'lokalni zaznam');
+        const blockers = offer.policyReasonCodes && offer.policyReasonCodes.length ? '<span class="pill">blokery: ' + escapeHtml(offer.policyReasonCodes.join(', ')) + '</span>' : '';
+        return '<article class="row"><div><b>' + escapeHtml(offer.title || 'Nabidka bez nazvu') + '</b><div class="meta"><span class="pill">' + escapeHtml(stateLabel) + '</span><span class="pill">' + money(offer.price) + '</span><span class="pill">sklad ' + escapeHtml(offer.stockQuantity ?? 0) + '</span>' + blockers + '</div></div><div class="row-actions"><span class="pill">' + (offer.isActive ? 'aktivni' : 'neaktivni') + '</span></div></article>';
+      }).join('');
+    };
+    const renderOrders = (orders) => {
+      $('ordersMessage').textContent = orders.length ? 'Posledni objednavky z Aukro.' : 'Zatim nejsou ulozene zadne objednavky z Aukro.';
+      $('orders').innerHTML = orders.map((order) => '<article class="row"><div><b>Objednavka ' + escapeHtml(order.aukroOrderId || order.id) + '</b><div class="meta"><span class="pill">' + escapeHtml(order.status || 'bez stavu') + '</span><span class="pill">' + money(order.total, order.currency) + '</span><span class="pill">' + (order.forwarded ? 'predano do orders' : 'ceka na predani') + '</span></div></div><div class="row-actions"><span class="pill">' + escapeHtml(order.customerEmail || 'zakaznik nezadan') + '</span></div></article>').join('');
     };
     const loadProducts = async () => {
       $('catalogMessage').className = 'message';
@@ -324,6 +499,8 @@ export class UiController {
         const result = await api('/aukro/ui/publish', { method: 'POST', body: JSON.stringify({ productId }) });
         $('catalogMessage').className = 'message ok';
         $('catalogMessage').textContent = 'Aukro draft ' + (result.action === 'reused' ? 'byl znovu pouzit' : 'byl vytvoren') + '. Stav: ' + result.draftStatus + '. ' + (result.blockers?.length ? 'Blokery: ' + result.blockers.join(', ') : 'Bez blokeru.');
+        const dashboard = await api('/aukro/ui/dashboard');
+        renderDashboard(dashboard);
       } catch (error) {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message;
@@ -334,12 +511,14 @@ export class UiController {
       $('adminView').style.display = 'block';
       $('services').innerHTML = result.services.map((service) => '<div class="service"><b>' + escapeHtml(service.name) + '</b><p class="hint">' + escapeHtml(service.role) + '</p><div class="meta"><span class="pill">' + escapeHtml(service.owner) + '</span><span class="pill">' + escapeHtml(service.route) + '</span></div></div>').join('');
     };
+    const money = (value, currency = 'CZK') => value === null || value === undefined ? 'cena nezadana' : new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: currency || 'CZK' }).format(Number(value));
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     if (page === 'dashboard') {
       consumeAuthFragment();
       $('loadProducts').addEventListener('click', loadProducts);
-      $('logout').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.reload(); });
-      if (state.token) showClient().catch(() => localStorage.removeItem('aukroAccessToken'));
+      $('logout').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.replace('/'); });
+      if (state.token) showClient().catch(redirectToAuth);
+      else redirectToAuth();
     }
   </script>
 </body>

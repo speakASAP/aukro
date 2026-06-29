@@ -161,14 +161,13 @@ export class JwtAuthGuard implements CanActivate {
           });
         }
 
-        // Throw UnauthorizedException for any JWT verification errors
-        if (jwtError.name === 'TokenExpiredError') {
-          return false;
-        } else if (jwtError.name === 'JsonWebTokenError') {
-          return false;
-        } else {
+        const remoteUser = await this.validateWithAuthService(token, path);
+        if (!remoteUser) {
           return false;
         }
+
+        request.user = remoteUser;
+        return true;
       }
     } catch (error: any) {
       const totalDuration = Date.now() - startTime;
@@ -190,6 +189,32 @@ export class JwtAuthGuard implements CanActivate {
       // If any other error occurs, throw UnauthorizedException
       return false;
     }
+  }
+
+  private async validateWithAuthService(token: string, path: string): Promise<AuthUser | null> {
+    const response = await this.authService.validateToken(token);
+    if (!response?.valid || !response.user) {
+      return null;
+    }
+
+    const user = response.user as AuthUser;
+    if (!user.id || String(user.id) === 'undefined' || String(user.id) === 'null') {
+      return null;
+    }
+
+    return {
+      id: String(user.id),
+      email: user.email || `user-${user.id}@unknown`,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      isActive: user.isActive !== false,
+      isVerified: user.isVerified !== false,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      roles: this.stringArray(user.roles),
+      permissions: this.stringArray(user.permissions),
+    };
   }
 
   private stringArray(value: any): string[] {
