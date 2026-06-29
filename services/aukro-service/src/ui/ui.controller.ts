@@ -422,6 +422,9 @@ export class UiController {
     .search-shell span:last-child { color: var(--ink); font-size: 13px; white-space: nowrap; }
     .top-actions { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
     .account-link { display: grid; grid-template-columns: 32px auto; gap: 8px; align-items: center; font-size: 13px; line-height: 1.1; font-weight: 700; }
+    .account-link span:last-child { display: block; min-width: 72px; max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
+    .account-link.is-authenticated { color: var(--aukro-orange); }
+    .account-link.is-authenticated .account-icon { color: var(--aukro-orange); border-color: var(--aukro-orange); }
     .account-icon, .cart-icon, .brand-switch { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; font-weight: 700; }
     .account-icon { color: #777; border: 2px solid #777; }
     .cart-icon { color: #777; font-size: 23px; }
@@ -460,6 +463,16 @@ export class UiController {
       text-decoration: none;
     }
     button:disabled { opacity: .55; cursor: wait; }
+    .logout-button {
+      min-height: 36px;
+      border-color: var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+      padding: 0 12px;
+      white-space: nowrap;
+    }
+    .logout-button:hover { border-color: var(--aukro-orange); color: var(--aukro-orange); }
     .category-bar { background: var(--surface); border-top: 1px solid transparent; border-bottom: 1px solid var(--line); }
     .category-inner {
       max-width: var(--max);
@@ -783,7 +796,8 @@ export class UiController {
         <span>Všechny kategorie⌄</span>
       </div>
       <div class="top-actions">
-        <a class="account-link" href="${hostedLoginUrl}" aria-label="Můj účet - přihlásit"><span class="account-icon">•</span><span>Můj účet<br />Přihlásit</span></a>
+        <a class="account-link" id="accountLoginLink" href="${hostedLoginUrl}" aria-label="Můj účet - přihlásit"><span class="account-icon">•</span><span id="accountNavLabel">Můj účet<br />Přihlásit</span></a>
+        <button class="logout-button hidden" id="headerLogout" type="button" aria-label="Odhlásit z Aukro dashboardu">Odhlásit</button>
         <span class="cart-icon" aria-hidden="true">▰</span>
         <a class="sell-button" href="${hostedLoginUrl}">⊕ Prodat</a>
       </div>
@@ -990,15 +1004,41 @@ export class UiController {
       return true;
     };
     const redirectToAuth = () => {
+      state.token = '';
       localStorage.removeItem('aukroAccessToken');
       location.replace(hostedLoginUrl);
+    };
+    const logout = () => {
+      state.token = '';
+      localStorage.removeItem('aukroAccessToken');
+      location.replace('/');
+    };
+    const updateHeaderAuth = (dashboard = null) => {
+      const accountLink = $('accountLoginLink');
+      const accountLabel = $('accountNavLabel');
+      const headerLogout = $('headerLogout');
+      if (!accountLink || !accountLabel || !headerLogout) return;
+      if (state.token) {
+        accountLink.href = '/dashboard';
+        accountLink.setAttribute('aria-label', 'Můj účet - dashboard');
+        const email = dashboard?.user?.email || dashboard?.user?.id || '';
+        accountLabel.innerHTML = 'Můj účet<br />' + escapeHtml(email || 'Přihlášen');
+        accountLink.classList.add('is-authenticated');
+        headerLogout.classList.remove('hidden');
+      } else {
+        accountLink.href = hostedLoginUrl;
+        accountLink.setAttribute('aria-label', 'Můj účet - přihlásit');
+        accountLabel.innerHTML = 'Můj účet<br />Přihlásit';
+        accountLink.classList.remove('is-authenticated');
+        headerLogout.classList.add('hidden');
+      }
     };
     const showDashboardError = (error) => {
       $('authView').classList.remove('hidden');
       $('clientView').classList.add('hidden');
       $('authView').innerHTML = '<div class="empty-state"><h1 class="section-title">Dashboard se nepodařilo načíst</h1><p class="muted">Přihlášení proběhlo, ale server vrátil chybu dashboardu.</p><p class="message warn">' + escapeHtml(error.message || 'Neočekávaná chyba serveru.') + '</p><div class="toolbar"><button id="retryDashboard" type="button">Zkusit znovu</button><button id="logoutAfterError" type="button">Odhlásit</button></div></div>';
       $('retryDashboard').addEventListener('click', () => showClient().catch(handleDashboardError));
-      $('logoutAfterError').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.replace('/'); });
+      $('logoutAfterError').addEventListener('click', logout);
     };
     const handleDashboardError = (error) => {
       if (error.status === 401 || error.status === 403) redirectToAuth();
@@ -1008,6 +1048,7 @@ export class UiController {
       const dashboard = await api('/aukro/ui/dashboard');
       state.dashboard = dashboard;
       state.me = dashboard;
+      updateHeaderAuth(dashboard);
       $('authView').classList.add('hidden');
       $('clientView').classList.remove('hidden');
       renderDashboard(dashboard);
@@ -1132,10 +1173,13 @@ export class UiController {
     };
     const money = (value, currency = 'CZK') => value === null || value === undefined ? 'cena nezadaná' : new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: currency || 'CZK' }).format(Number(value));
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    updateHeaderAuth();
+    $('headerLogout').addEventListener('click', logout);
     if (page === 'dashboard') {
       consumeAuthFragment();
+      updateHeaderAuth();
       $('loadProducts').addEventListener('click', loadProducts);
-      $('logout').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.replace('/'); });
+      $('logout').addEventListener('click', logout);
       if (state.token) showClient().catch(handleDashboardError);
       else redirectToAuth();
     }
