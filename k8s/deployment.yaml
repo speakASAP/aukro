@@ -46,6 +46,11 @@ spec:
                 secretKeyRef:
                   name: aukro-service-secret
                   key: JWT_TOKEN
+            - name: WAREHOUSE_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: WAREHOUSE_SERVICE_TOKEN
           startupProbe:
             httpGet:
               path: /health

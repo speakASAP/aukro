@@ -9,6 +9,9 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC
 SERVICE_NAME="aukro-service"
 NAMESPACE="${NAMESPACE:-statex-apps}"
 K8S_DIR="$PROJECT_ROOT/k8s"
+IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD)}"
+IMAGE="localhost:5000/$SERVICE_NAME:$IMAGE_TAG"
+LATEST_IMAGE="localhost:5000/$SERVICE_NAME:latest"
 
 # shellcheck disable=SC1091
 source "$(dirname "$PROJECT_ROOT")/shared/scripts/load-deploy-phase-timing.sh" "$PROJECT_ROOT" 2>/dev/null \
@@ -57,6 +60,20 @@ fi
 
 deploy_timing_run_phase "Preflight" preflight_service_health
 
+build_image() {
+  echo -e "${YELLOW}Building image $IMAGE...${NC}"
+  docker build -f "$PROJECT_ROOT/services/aukro-service/Dockerfile" -t "$IMAGE" -t "$LATEST_IMAGE" "$PROJECT_ROOT"
+}
+
+push_image() {
+  echo -e "${YELLOW}Pushing image $IMAGE...${NC}"
+  docker push "$IMAGE"
+  docker push "$LATEST_IMAGE"
+}
+
+deploy_timing_run_phase "Build image" build_image
+deploy_timing_run_phase "Push image" push_image
+
 deploy_timing_phase_start "Apply Kubernetes manifests"
 echo -e "${YELLOW}Applying Kubernetes manifests...${NC}"
 for manifest in configmap.yaml external-secret.yaml deployment.yaml service.yaml ingress.yaml; do
@@ -67,11 +84,12 @@ done
 echo -e "${GREEN}OK Kubernetes manifests applied${NC}"
 deploy_timing_phase_end "Apply Kubernetes manifests"
 
-deploy_timing_phase_start "Rollout restart"
-echo -e "${YELLOW}Triggering rollout restart...${NC}"
-kubectl rollout restart deployment/"$SERVICE_NAME" -n "$NAMESPACE"
-echo -e "${GREEN}OK Rollout restart triggered${NC}"
-deploy_timing_phase_end "Rollout restart"
+deploy_timing_phase_start "Set deployment image"
+echo -e "${YELLOW}Setting deployment image to $IMAGE...${NC}"
+kubectl set image deployment/"$SERVICE_NAME" app="$IMAGE" -n "$NAMESPACE"
+kubectl annotate deployment/"$SERVICE_NAME" -n "$NAMESPACE" deployment.kubernetes.io/restartedAt="$(date -Iseconds)" --overwrite
+echo -e "${GREEN}OK Deployment image set to $IMAGE${NC}"
+deploy_timing_phase_end "Set deployment image"
 
 deploy_timing_phase_start "Wait for rollout"
 echo -e "${YELLOW}Waiting for rollout...${NC}"
