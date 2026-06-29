@@ -73,6 +73,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       try {
         await this.$queryRaw`SELECT 1`;
         this.logger.log('Prisma connection pool warmed up');
+        await this.ensureAukroSchema();
       } catch (warmupError) {
         this.logger.warn('Prisma connection warmup query failed (non-critical)', warmupError);
       }
@@ -80,6 +81,67 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       this.logger.error('Failed to connect to database', error);
       throw error;
     }
+  }
+
+
+  private async ensureAukroSchema() {
+    await this.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS public.aukro_accounts (
+        id uuid PRIMARY KEY,
+        name varchar(200) NOT NULL,
+        email varchar(200) NOT NULL,
+        "apiKey" text,
+        "isActive" boolean NOT NULL DEFAULT true,
+        "createdAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_accounts_email_idx" ON public.aukro_accounts (email)');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_accounts_isActive_idx" ON public.aukro_accounts ("isActive")');
+
+    await this.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS public.aukro_offers (
+        id uuid PRIMARY KEY,
+        "accountId" uuid NOT NULL REFERENCES public.aukro_accounts(id) ON DELETE CASCADE,
+        "productId" uuid,
+        "aukroOfferId" varchar(100),
+        title varchar(500) NOT NULL,
+        description text,
+        price numeric(10,2) NOT NULL,
+        "stockQuantity" integer NOT NULL DEFAULT 0,
+        "isActive" boolean NOT NULL DEFAULT true,
+        "rawData" jsonb,
+        "createdAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_offers_productId_idx" ON public.aukro_offers ("productId")');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_offers_accountId_idx" ON public.aukro_offers ("accountId")');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_offers_aukroOfferId_idx" ON public.aukro_offers ("aukroOfferId")');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_offers_isActive_idx" ON public.aukro_offers ("isActive")');
+
+    await this.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS public.aukro_orders (
+        id uuid PRIMARY KEY,
+        "accountId" uuid NOT NULL REFERENCES public.aukro_accounts(id) ON DELETE CASCADE,
+        "aukroOrderId" varchar(100) NOT NULL UNIQUE,
+        "orderId" uuid,
+        "customerEmail" varchar(200),
+        "customerPhone" varchar(50),
+        total numeric(10,2) NOT NULL,
+        currency varchar(3) NOT NULL DEFAULT 'CZK',
+        status varchar(50) NOT NULL DEFAULT 'pending',
+        forwarded boolean NOT NULL DEFAULT false,
+        "rawData" jsonb,
+        "createdAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_orders_accountId_idx" ON public.aukro_orders ("accountId")');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_orders_aukroOrderId_idx" ON public.aukro_orders ("aukroOrderId")');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_orders_status_idx" ON public.aukro_orders (status)');
+    await this.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "aukro_orders_forwarded_idx" ON public.aukro_orders (forwarded)');
+    this.logger.log('Aukro database schema verified');
   }
 
   async onModuleDestroy() {

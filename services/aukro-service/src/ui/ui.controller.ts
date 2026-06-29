@@ -414,7 +414,11 @@ export class UiController {
       if (state.token) headers.Authorization = 'Bearer ' + state.token;
       const response = await fetch(url, { ...options, headers });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || data.error?.message || 'Pozadavek selhal');
+      if (!response.ok) {
+        const error = new Error(data.message || data.error?.message || 'Pozadavek selhal');
+        error.status = response.status;
+        throw error;
+      }
       return data;
     };
     const consumeAuthFragment = () => {
@@ -434,6 +438,17 @@ export class UiController {
     const redirectToAuth = () => {
       localStorage.removeItem('aukroAccessToken');
       location.replace(hostedLoginUrl);
+    };
+    const showDashboardError = (error) => {
+      $('authView').classList.remove('hidden');
+      $('clientView').classList.add('hidden');
+      $('authView').innerHTML = '<h2>Dashboard se nepodarilo nacist</h2><p class="hint">Prihlaseni probehlo, ale server vratil chybu dashboardu. Zkuste obnovit stranku nebo kontaktujte podporu Alfares.</p><p class="message warn">' + escapeHtml(error.message || 'Neocekavana chyba serveru.') + '</p><div class="toolbar"><button id="retryDashboard" type="button">Zkusit znovu</button><button id="logoutAfterError" type="button">Odhlasit</button></div>';
+      $('retryDashboard').addEventListener('click', () => showClient().catch(handleDashboardError));
+      $('logoutAfterError').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.replace('/'); });
+    };
+    const handleDashboardError = (error) => {
+      if (error.status === 401 || error.status === 403) redirectToAuth();
+      else showDashboardError(error);
     };
     const showClient = async () => {
       const dashboard = await api('/aukro/ui/dashboard');
@@ -517,7 +532,7 @@ export class UiController {
       consumeAuthFragment();
       $('loadProducts').addEventListener('click', loadProducts);
       $('logout').addEventListener('click', () => { localStorage.removeItem('aukroAccessToken'); location.replace('/'); });
-      if (state.token) showClient().catch(redirectToAuth);
+      if (state.token) showClient().catch(handleDashboardError);
       else redirectToAuth();
     }
   </script>
