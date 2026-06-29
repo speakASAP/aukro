@@ -187,6 +187,7 @@ export class UiController {
       aukroOfferId: offer.aukroOfferId,
       title: offer.title,
       description: offer.description,
+      imageUrl: this.extractImageUrl(rawData),
       price: this.numberOrNull(offer.price),
       stockQuantity: offer.stockQuantity,
       isActive: Boolean(offer.isActive),
@@ -199,10 +200,17 @@ export class UiController {
   }
 
   private publicOrder(order: any) {
+    const rawData = this.asRecord(order.rawData);
+    const items = this.extractOrderItems(rawData);
+    const title = this.textOrNull(rawData.title ?? rawData.name ?? rawData.orderTitle) || `Objednávka ${order.aukroOrderId || order.id}`;
+
     return {
       id: order.id,
       aukroOrderId: order.aukroOrderId,
       orderId: order.orderId,
+      title,
+      imageUrl: this.extractImageUrl(rawData),
+      items: items.map((item) => this.publicOrderItem(item)).slice(0, 12),
       customerEmail: order.customerEmail,
       total: this.numberOrNull(order.total),
       currency: order.currency,
@@ -210,6 +218,73 @@ export class UiController {
       forwarded: Boolean(order.forwarded),
       createdAt: order.createdAt,
     };
+  }
+
+  private publicOrderItem(item: any) {
+    const record = this.asRecord(item);
+    const title = this.textOrNull(record.title ?? record.name ?? record.productName ?? record.offerTitle ?? record.listingTitle) || 'Produkt bez názvu';
+
+    return {
+      title,
+      imageUrl: this.extractImageUrl(record),
+      quantity: this.numberOrNull(record.quantity ?? record.qty),
+    };
+  }
+
+  private extractOrderItems(rawData: Record<string, any>): any[] {
+    const order = this.asRecord(rawData.order);
+    const candidates = [rawData.items, order.items, rawData.orderItems, rawData.lines, rawData.products];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) return candidate;
+    }
+    return [];
+  }
+
+  private extractImageUrl(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === 'string') return value.trim() || null;
+
+    const record = this.asRecord(value);
+    const directCandidates = [
+      record.imageUrl,
+      record.thumbnailUrl,
+      record.photoUrl,
+      record.pictureUrl,
+      record.mainImageUrl,
+      record.primaryImageUrl,
+      record.previewUrl,
+      record.url,
+      record.src,
+      record.publicUrl,
+    ];
+
+    for (const candidate of directCandidates) {
+      const url = this.textOrNull(candidate);
+      if (url) return url;
+    }
+
+    const nestedCandidates = [record.image, record.thumbnail, record.photo, record.picture, record.mainImage, record.primaryImage];
+    for (const candidate of nestedCandidates) {
+      const url = this.extractImageUrl(candidate);
+      if (url) return url;
+    }
+
+    const collections = [record.images, record.photos, record.media, record.pictures, record.assets, record.gallery];
+    for (const collection of collections) {
+      if (!Array.isArray(collection)) continue;
+      for (const item of collection) {
+        const url = this.extractImageUrl(item);
+        if (url) return url;
+      }
+    }
+
+    return null;
+  }
+
+  private textOrNull(value: any): string | null {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    return text || null;
   }
 
   private dashboardSummary(offers: any[], orders: any[]) {
@@ -550,6 +625,63 @@ export class UiController {
     .product-body { padding: 14px 16px 16px; display: grid; gap: 9px; }
     .condition { color: var(--aukro-orange); text-transform: uppercase; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
     .product-title { margin: 0; font-size: 17px; line-height: 1.25; font-weight: 700; }
+    .compact-product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 148px));
+      gap: 12px;
+      align-items: start;
+      justify-content: start;
+      margin-top: 12px;
+    }
+    .compact-product-card {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      color: var(--ink-strong);
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 7px;
+      padding: 8px;
+      overflow: hidden;
+      text-align: left;
+    }
+    button.compact-product-card { cursor: pointer; }
+    button.compact-product-card:hover { border-color: var(--aukro-orange); box-shadow: 0 4px 14px rgba(255, 90, 0, .18); }
+    .compact-product-media {
+      min-height: 0;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #f4f4f5, #ffffff);
+      border: 1px solid #ececec;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .compact-product-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-placeholder {
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--aukro-orange-soft);
+      color: var(--aukro-orange);
+      font-size: 26px;
+      font-weight: 700;
+    }
+    .compact-product-title {
+      min-height: 32px;
+      color: var(--ink-strong);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
     .price { font-size: 22px; font-weight: 700; text-align: right; }
     .muted { color: var(--muted); }
     .tabs-bar {
@@ -651,7 +783,7 @@ export class UiController {
         <span>Všechny kategorie⌄</span>
       </div>
       <div class="top-actions">
-        <a class="account-link" href="${hostedLoginUrl}"><span class="account-icon">•</span><span>Můj účet<br />Přihlásit</span></a>
+        <a class="account-link" href="${hostedLoginUrl}" aria-label="Můj účet - přihlásit"><span class="account-icon">•</span><span>Můj účet<br />Přihlásit</span></a>
         <span class="cart-icon" aria-hidden="true">▰</span>
         <a class="sell-button" href="${hostedLoginUrl}">⊕ Prodat</a>
       </div>
@@ -799,20 +931,20 @@ export class UiController {
 
             <div class="workspace">
               <div class="panel">
-                <h2 class="section-title">Produkty k prodeji na Aukro</h2>
+                <h2 class="section-title">Produkty k publikování na Aukro</h2>
                 <div class="toolbar"><input id="search" class="field" type="search" placeholder="Vyhledat produkt v katalogu" /><button id="loadProducts" type="button">Načíst produkty</button></div>
                 <div class="message" id="catalogMessage"></div>
-                <div class="offer-grid" id="products"></div>
+                <div class="compact-product-grid" id="products"></div>
               </div>
               <div class="panel">
-                <h2 class="section-title">Moje Aukro nabídky a drafty</h2>
+                <h2 class="section-title">Produkty prodané na Aukro</h2>
+                <div class="message" id="ordersMessage"></div>
+                <div class="compact-product-grid" id="orders"></div>
+              </div>
+              <div class="panel">
+                <h2 class="section-title">Aukro nabídky a drafty</h2>
                 <div class="message" id="offersMessage"></div>
                 <div class="list" id="offers"></div>
-              </div>
-              <div class="panel">
-                <h2 class="section-title">Objednávky z Aukro</h2>
-                <div class="message" id="ordersMessage"></div>
-                <div class="list" id="orders"></div>
               </div>
             </div>
 
@@ -910,8 +1042,21 @@ export class UiController {
       }).join('');
     };
     const renderOrders = (orders) => {
-      $('ordersMessage').textContent = orders.length ? 'Poslední objednávky z Aukro.' : 'Zatím nejsou uložené žádné objednávky z Aukro.';
-      $('orders').innerHTML = orders.map((order) => '<article class="listing-row"><div class="listing-thumb">₭</div><div class="listing-main"><span class="condition">' + escapeHtml(order.status || 'bez stavu') + '</span><b>Objednávka ' + escapeHtml(order.aukroOrderId || order.id) + '</b><div class="meta"><span class="pill">' + (order.forwarded ? 'předáno do orders' : 'čeká na předání') + '</span><span class="pill">' + escapeHtml(order.customerEmail || 'zákazník nezadán') + '</span></div></div><div class="listing-side"><span class="price">' + money(order.total, order.currency) + '</span><span class="muted">Aukro order</span></div></article>').join('');
+      const soldProducts = orders.flatMap((order) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        if (items.length) {
+          return items.map((item) => ({
+            title: item.title || order.title || ('Objednávka ' + (order.aukroOrderId || order.id)),
+            imageUrl: item.imageUrl || order.imageUrl || '',
+          }));
+        }
+        return [{
+          title: order.title || ('Objednávka ' + (order.aukroOrderId || order.id)),
+          imageUrl: order.imageUrl || '',
+        }];
+      });
+      $('ordersMessage').textContent = soldProducts.length ? 'Prodáno na Aukro: ' + soldProducts.length + ' produktů.' : 'Zatím nejsou uložené žádné prodané produkty z Aukro.';
+      $('orders').innerHTML = soldProducts.map((item) => compactProductCard(item, false)).join('');
     };
     const loadProducts = async () => {
       $('catalogMessage').className = 'message';
@@ -924,11 +1069,47 @@ export class UiController {
       document.querySelectorAll('[data-publish]').forEach((button) => button.addEventListener('click', () => publishProduct(button.dataset.publish, button)));
     };
     const productCard = (item) => {
-      const title = item.title || item.name || 'Produkt bez názvu';
-      const sku = item.sku || item.code || 'bez SKU';
-      const category = item.categoryId || item.category?.name || 'kategorie nezadána';
+      return compactProductCard({
+        id: item.id,
+        title: item.title || item.name || 'Produkt bez názvu',
+        imageUrl: imageUrlFor(item),
+      }, true);
+    };
+    const compactProductCard = (item, publishable) => {
+      const title = item.title || 'Produkt bez názvu';
       const initial = String(title).trim().charAt(0).toUpperCase() || 'A';
-      return '<article class="product-card"><div class="product-media"><span class="thumb">' + escapeHtml(initial) + '</span><span class="heart">♡ ' + escapeHtml(item.stockQuantity ?? item.stock ?? 1) + '</span></div><div class="product-body"><span class="condition">Připraveno</span><h3 class="product-title">' + escapeHtml(title) + '</h3><p class="muted">' + escapeHtml(item.description || 'Popis bude převzat z katalogu při vytvoření Aukro draftu.') + '</p><div class="meta"><span class="pill">SKU: ' + escapeHtml(sku) + '</span><span class="pill">' + escapeHtml(category) + '</span></div><button class="primary" type="button" data-publish="' + escapeHtml(item.id) + '">Publikovat na Aukro</button></div></article>';
+      const imageUrl = item.imageUrl || imageUrlFor(item);
+      const media = '<span class="compact-product-media">' + (imageUrl ? '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(title) + '" loading="lazy" />' : '<span class="photo-placeholder">' + escapeHtml(initial) + '</span>') + '</span>';
+      const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>';
+      if (publishable) {
+        return '<button class="compact-product-card" type="button" data-publish="' + escapeHtml(item.id) + '">' + body + '</button>';
+      }
+      return '<article class="compact-product-card">' + body + '</article>';
+    };
+    const imageUrlFor = (source) => {
+      if (!source) return '';
+      if (typeof source === 'string') return source.trim();
+      if (typeof source !== 'object') return '';
+      const fromValue = (value) => {
+        if (!value) return '';
+        if (typeof value === 'string') return value.trim();
+        if (typeof value !== 'object') return '';
+        return value.imageUrl || value.thumbnailUrl || value.photoUrl || value.pictureUrl || value.mainImageUrl || value.primaryImageUrl || value.previewUrl || value.url || value.src || value.publicUrl || '';
+      };
+      const direct = fromValue(source);
+      if (direct) return direct;
+      for (const nested of [source.image, source.thumbnail, source.photo, source.picture, source.mainImage, source.primaryImage]) {
+        const url = imageUrlFor(nested);
+        if (url) return url;
+      }
+      for (const collection of [source.images, source.photos, source.media, source.pictures, source.assets, source.gallery]) {
+        if (!Array.isArray(collection)) continue;
+        for (const item of collection) {
+          const url = imageUrlFor(item);
+          if (url) return url;
+        }
+      }
+      return '';
     };
     const publishProduct = async (productId, button) => {
       button.disabled = true;
