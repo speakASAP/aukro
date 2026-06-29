@@ -5,9 +5,9 @@ process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://log
 const { OffersService } = require('./offers.service');
 const { OfferPolicyService } = require('./policy/offer-policy.service');
 
-const fresh = '2026-06-14T12:00:00.000Z';
+const fresh = new Date().toISOString();
 
-function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
+function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -50,7 +50,12 @@ function createHarness(overrides: { stock?: number; media?: any[]; pricing?: any
     getProductPricing: async () => pricing,
     getProductMedia: async () => media,
   };
-  const warehouseClient = { getTotalAvailable: async () => stock };
+  const warehouseClient = {
+    getTotalAvailable: async () => {
+      if (overrides.warehouseError) throw overrides.warehouseError;
+      return stock;
+    },
+  };
   const aiClient = {
     createListingProposal: async () => overrides.aiResult || {
       success: true,
@@ -172,6 +177,34 @@ async function run() {
   assert.equal(replayed.action, 'reused');
   assert.equal(replayed.attempt.id, queued.attempt.id);
   assert.equal(replayed.queue.attempts.length, 1);
+
+  const zeroStockPublishHarness = createHarness({ stock: 0, existingOffer: approved.offer });
+  const zeroStockPublish = await zeroStockPublishHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-zero-stock-1',
+    rateLimitRemaining: 1,
+    policyEvidence: { stockAvailable: { passed: true, checkedAt: fresh, source: 'synthetic-test', quantity: 99 } },
+  });
+  assert.equal(zeroStockPublish.attempt.status, 'blocked');
+  assert.equal(zeroStockPublish.compliancePolicy.allowed, false);
+  assert.ok(zeroStockPublish.blockers.includes('STOCK_AVAILABILITY_FAILED'));
+  assert.equal(zeroStockPublish.attempt.policyEvidence.stockAvailable.quantity, 0);
+  assert.equal(zeroStockPublish.queue.queuedCount, 0);
+
+  const unavailableStockPublishHarness = createHarness({
+    warehouseError: new Error('warehouse unavailable'),
+    existingOffer: approved.offer,
+  });
+  const unavailableStockPublish = await unavailableStockPublishHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-warehouse-unavailable-1',
+    rateLimitRemaining: 1,
+  });
+  assert.equal(unavailableStockPublish.attempt.status, 'blocked');
+  assert.equal(unavailableStockPublish.compliancePolicy.allowed, false);
+  assert.ok(unavailableStockPublish.blockers.includes('STOCK_AVAILABILITY_FAILED'));
+  assert.equal(unavailableStockPublish.attempt.policyEvidence.stockAvailable.quantity, 0);
+  assert.equal(unavailableStockPublish.queue.queuedCount, 0);
 
   const blockedPublishHarness = createHarness({ existingOffer: created.offer });
   const blockedPublish = await blockedPublishHarness.service.enqueuePublish(created.offer.id, {

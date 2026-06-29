@@ -986,7 +986,41 @@ export class OffersService {
       };
     }
 
+    generated.stockAvailable = await this.collectPublishWarehouseStockEvidence(offer, checkedAt);
+
     return this.mergePolicyEvidence(evidence, generated);
+  }
+
+  private async collectPublishWarehouseStockEvidence(offer: any, checkedAt: string): Promise<PolicyEvidenceFlag> {
+    if (!offer.productId) {
+      return {
+        passed: false,
+        checkedAt,
+        source: 'warehouse-microservice',
+        hint: 'Publish requires a catalog product route before Warehouse availability can be verified.',
+      };
+    }
+
+    try {
+      const quantity = Number(await this.warehouseClient.getTotalAvailable(offer.productId));
+      const available = Number.isFinite(quantity) && quantity > 0;
+      return {
+        passed: available,
+        checkedAt,
+        source: 'warehouse-microservice',
+        quantity: Number.isFinite(quantity) ? quantity : 0,
+        hint: available ? undefined : 'Warehouse availability must be greater than zero before enqueueing publication.',
+      } as PolicyEvidenceFlag;
+    } catch (error: any) {
+      this.logger.warn(`Publish Warehouse availability lookup failed for offer ${offer.id}: ${error.message}`);
+      return {
+        passed: false,
+        checkedAt,
+        source: 'warehouse-microservice',
+        quantity: 0,
+        hint: 'Warehouse availability could not be verified; publication remains blocked.',
+      } as PolicyEvidenceFlag;
+    }
   }
 
   private publishIdempotencyKey(offer: any): string {

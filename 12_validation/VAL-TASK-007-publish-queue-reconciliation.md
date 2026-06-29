@@ -4,7 +4,7 @@ status: reviewed
 target: 11_tasks/TASK-007-publish-queue-reconciliation.md
 owner: Engineering
 created: 2026-06-13
-last_updated: 2026-06-13
+last_updated: 2026-06-29
 completeness_level: complete
 upstream:
   - 11_tasks/TASK-007-publish-queue-reconciliation.md
@@ -65,6 +65,19 @@ No implementation issues remain. The slice intentionally does not add a live Auk
 ## Deviations
 
 No deviations from the execution plan. Queue, attempt, and reconciliation records are stored in `AukroOffer.rawData` as planned for this focused slice.
+
+## 2026-06-29 Stock Safety Hardening
+
+Vision -> Goal Impact -> System -> Feature -> Task -> Execution Plan -> Coding Prompt -> Code -> Validation remains preserved through TASK-007 / FEAT-008 publish queue evidence.
+
+Change: publish enqueue now refreshes Warehouse authority evidence during `enqueuePublish` and overwrites supplied/local stock evidence before queue status is calculated. Sellable listings are blocked when Warehouse route evidence is missing, availability is zero, or Warehouse availability cannot be verified. Aukro local stock snapshots remain non-authoritative for publish readiness.
+
+Validation evidence:
+
+- `npx ts-node --skip-ignore --compiler-options '{"types":["node"]}' src/aukro/offers/offers.service.spec.ts`: Pass; covers queued publish, replay, zero Warehouse availability overriding supplied passing stock evidence, and Warehouse lookup failure.
+- `git diff --check`: Pass.
+- `npm test`: Pass.
+- `npm run build`: Pass.
 
 ## Recommendation
 
