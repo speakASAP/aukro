@@ -29,6 +29,10 @@ export class OfferPolicyService {
   private readonly defaultMaxEvidenceAgeMinutes = 24 * 60;
   private readonly defaultMinMarginPercent = 0;
 
+  // See 16_operations/AUKRO_PLATFORM_RULES.md. Aukro prohibits robot/crawler content
+  // reproduction without explicit consent and scripts/software that disrupt or overload
+  // the platform, so live publish readiness stays fail-closed to official WebAPI/key,
+  // rate-limit, idempotency, and human-approval evidence.
   private readonly gates: GateDefinition[] = [
     {
       evidenceKey: 'catalogValidated',
