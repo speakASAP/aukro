@@ -1,6 +1,7 @@
 import { OfferPolicyEvaluation, OfferPolicyEvidence } from './policy/offer-policy.types';
 
 export type CatalogDraftStatus = 'ready_for_review' | 'blocked';
+export type CatalogDraftDescriptionSource = 'catalog-content-preview' | 'catalog-product-description' | 'empty';
 
 export interface CatalogSellActionRequest {
   accountId: string;
@@ -9,20 +10,41 @@ export interface CatalogSellActionRequest {
   policyEvidence?: OfferPolicyEvidence;
 }
 
+export interface CatalogDraftContentPreviewSnapshot {
+  marketplace: string;
+  label?: string;
+  format?: string;
+  title?: string;
+  plainText?: string;
+  htmlAvailable: boolean;
+  blocksAvailable: boolean;
+  sectionsAvailable: boolean;
+  source: {
+    canonicalDocumentVersion?: string;
+    legacyDescriptionFallback?: boolean;
+    sourceHash?: string;
+    generatedAt?: string;
+  };
+  overridesApplied?: boolean;
+  warnings: string[];
+}
+
 export interface CatalogDraftSourceSnapshot {
   productId: string;
   title: string;
   description?: string;
+  descriptionSource: CatalogDraftDescriptionSource;
   categoryId?: string;
   price: number;
   currency: string;
   stockQuantity: number;
   mediaCount: number;
   capturedAt: string;
+  contentPreview?: CatalogDraftContentPreviewSnapshot;
 }
 
 export interface CatalogDraftMetadata {
-  draftVersion: 1;
+  draftVersion: 2;
   draftStatus: CatalogDraftStatus;
   source: 'catalog-sell-action';
   requestedBy?: string;

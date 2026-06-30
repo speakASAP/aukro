@@ -218,6 +218,25 @@ nodes:
 - id: VAL-TASK-011-document-aukro-platform-rules
   type: ValidationReport
   path: 12_validation/VAL-TASK-011-document-aukro-platform-rules.md
+
+- id: TASK-012
+  type: Task
+  path: 11_tasks/TASK-012-catalog-content-preview-drafts.md
+- id: EP-TASK-012
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md
+- id: CP-TASK-012
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-012-catalog-content-preview-drafts.md
+- id: PROMPT-TASK-012-catalog-content-preview-drafts
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-012-catalog-content-preview-drafts.md
+- id: GOAL-IMPACT-TASK-012
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-012.md
+- id: VAL-TASK-012-catalog-content-preview-drafts
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-012-catalog-content-preview-drafts.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -545,3 +564,34 @@ edges:
 - from: VAL-TASK-011-document-aukro-platform-rules
   type: validates
   to: TASK-011
+
+- from: TASK-012
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-012
+  type: implements
+  to: FEAT-005
+- from: TASK-012
+  type: decomposes_into
+  to: EP-TASK-012
+- from: TASK-012
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-012
+- from: EP-TASK-012
+  type: derives_from
+  to: TASK-012
+- from: EP-TASK-012
+  type: generates
+  to: PROMPT-TASK-012-catalog-content-preview-drafts
+- from: EP-TASK-012
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-012-catalog-content-preview-drafts
+  type: derives_from
+  to: EP-TASK-012
+- from: PROMPT-TASK-012-catalog-content-preview-drafts
+  type: included_in_context
+  to: CP-TASK-012
+- from: VAL-TASK-012-catalog-content-preview-drafts
+  type: validates
+  to: TASK-012

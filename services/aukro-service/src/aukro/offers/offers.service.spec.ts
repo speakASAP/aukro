@@ -7,7 +7,7 @@ const { OfferPolicyService } = require('./policy/offer-policy.service');
 
 const fresh = new Date().toISOString();
 
-function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
+function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; contentPreview?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -20,6 +20,24 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
   const pricing = overrides.pricing === undefined ? { basePrice: 199, currency: 'CZK', marginPercent: 20 } : overrides.pricing;
   const media = overrides.media === undefined ? [{ id: 'media-1' }] : overrides.media;
   const stock = overrides.stock === undefined ? 3 : overrides.stock;
+  const contentPreview = overrides.contentPreview === undefined ? {
+    marketplace: 'aukro',
+    label: 'Aukro',
+    format: 'plain-text',
+    content: {
+      title: 'Synthetic Aukro Product',
+      plainText: 'Canonical Aukro plain text',
+      html: '<p>Canonical Aukro plain text</p>',
+    },
+    source: {
+      canonicalDocumentVersion: 'doc-v1',
+      legacyDescriptionFallback: false,
+      sourceHash: 'hash-canonical-1',
+      generatedAt: fresh,
+    },
+    overridesApplied: false,
+    warnings: [],
+  } : overrides.contentPreview;
   let existingOffer = overrides.existingOffer || null;
   let createCount = 0;
 
@@ -49,6 +67,7 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
     getProductById: async () => product,
     getProductPricing: async () => pricing,
     getProductMedia: async () => media,
+    getProductContentPreview: async () => contentPreview,
   };
   const warehouseClient = {
     getTotalAvailable: async () => {
@@ -114,6 +133,9 @@ async function run() {
   assert.equal(created.compliancePolicy.allowed, true);
   assert.equal(created.offer.isActive, false);
   assert.equal(created.offer.rawData.draft.source, 'catalog-sell-action');
+  assert.equal(created.offer.description, 'Canonical Aukro plain text');
+  assert.equal(created.offer.rawData.draft.sourceSnapshot.descriptionSource, 'catalog-content-preview');
+  assert.equal(created.offer.rawData.draft.sourceSnapshot.contentPreview.source.sourceHash, 'hash-canonical-1');
   assert.equal(createdHarness.getCreateCount(), 1);
 
   const existingOffer = { ...created.offer, id: 'offer-1' };
@@ -125,6 +147,15 @@ async function run() {
   });
   assert.equal(reused.action, 'reused');
   assert.equal(reusedHarness.getCreateCount(), 0);
+
+  const fallbackHarness = createHarness({ contentPreview: null });
+  const fallback = await fallbackHarness.service.createFromCatalog({
+    accountId: fallbackHarness.account.id,
+    productId: fallbackHarness.product.id,
+    policyEvidence: { aiRiskCleared: { passed: true, checkedAt: fresh, source: 'synthetic-test' } },
+  });
+  assert.equal(fallback.offer.description, 'Synthetic description');
+  assert.equal(fallback.sourceSnapshot.descriptionSource, 'catalog-product-description');
 
   const blockedHarness = createHarness({ stock: 0, media: [], pricing: null });
   const blocked = await blockedHarness.service.createFromCatalog({

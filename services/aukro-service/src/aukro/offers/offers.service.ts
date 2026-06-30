@@ -10,6 +10,7 @@ import {
   WarehouseClientService,
 } from "@aukro/shared";
 import {
+  CatalogDraftContentPreviewSnapshot,
   CatalogDraftMetadata,
   CatalogDraftSourceSnapshot,
   CatalogSellActionRequest,
@@ -154,11 +155,12 @@ export class OffersService {
       throw new NotFoundException(`Account ${input.accountId} not found`);
     }
 
-    const [product, stockQuantity, pricing, media] = await Promise.all([
+    const [product, stockQuantity, pricing, media, contentPreview] = await Promise.all([
       this.catalogClient.getProductById(input.productId),
       this.warehouseClient.getTotalAvailable(input.productId),
       this.catalogClient.getProductPricing(input.productId),
       this.catalogClient.getProductMedia(input.productId),
+      this.catalogClient.getProductContentPreview(input.productId, 'aukro'),
     ]);
 
     const existingOffer = await this.prisma.aukroOffer.findFirst({
@@ -179,7 +181,7 @@ export class OffersService {
     );
 
     const price = Number(pricing?.basePrice ?? pricing?.price ?? 0);
-    const sourceSnapshot = this.buildCatalogDraftSnapshot({ product, pricing, stockQuantity, media });
+    const sourceSnapshot = this.buildCatalogDraftSnapshot({ product, pricing, stockQuantity, media, contentPreview });
     const policyEvidence = this.mergePolicyEvidence(
       this.buildDerivedEvidence({
         offer: {
@@ -202,7 +204,7 @@ export class OffersService {
     const compliancePolicy = this.offerPolicyService.evaluateDraft(policyEvidence);
     const draftStatus = compliancePolicy.allowed ? 'ready_for_review' : 'blocked';
     const rawData = this.mergeDraftRawData(existingOffer?.rawData, {
-      draftVersion: 1,
+      draftVersion: 2,
       draftStatus,
       source: 'catalog-sell-action',
       requestedBy: input.requestedBy,
@@ -846,19 +848,60 @@ export class OffersService {
     pricing?: any;
     stockQuantity: number;
     media: any[];
+    contentPreview?: any | null;
   }): CatalogDraftSourceSnapshot {
     const product = snapshot.product || {};
     const price = Number(snapshot.pricing?.basePrice ?? snapshot.pricing?.price ?? 0);
+    const contentPreview = this.buildContentPreviewSnapshot(snapshot.contentPreview);
+    const previewDescription = this.textOrUndefined(contentPreview?.plainText);
+    const productDescription = this.textOrUndefined(product.description);
+    const description = previewDescription || productDescription;
+
     return {
       productId: product.id,
-      title: product.title || product.name || 'Untitled catalog product',
-      description: product.description,
+      title: contentPreview?.title || product.title || product.name || 'Untitled catalog product',
+      description,
+      descriptionSource: previewDescription
+        ? 'catalog-content-preview'
+        : productDescription
+          ? 'catalog-product-description'
+          : 'empty',
       categoryId: product.categoryId || product.category?.id,
       price: Number.isFinite(price) ? price : 0,
       currency: snapshot.pricing?.currency || 'CZK',
       stockQuantity: Number(snapshot.stockQuantity || 0),
       mediaCount: snapshot.media?.length || 0,
       capturedAt: new Date().toISOString(),
+      ...(contentPreview ? { contentPreview } : {}),
+    };
+  }
+
+  private buildContentPreviewSnapshot(contentPreview?: any | null): CatalogDraftContentPreviewSnapshot | undefined {
+    const preview = this.asRecord(contentPreview);
+    if (!Object.keys(preview).length) {
+      return undefined;
+    }
+
+    const content = this.asRecord(preview.content);
+    const source = this.asRecord(preview.source);
+
+    return {
+      marketplace: this.textOrUndefined(preview.marketplace) || 'aukro',
+      label: this.textOrUndefined(preview.label),
+      format: this.textOrUndefined(preview.format),
+      title: this.textOrUndefined(content.title),
+      plainText: this.textOrUndefined(content.plainText),
+      htmlAvailable: Boolean(content.html),
+      blocksAvailable: Array.isArray(content.blocks) && content.blocks.length > 0,
+      sectionsAvailable: Array.isArray(content.sections) && content.sections.length > 0,
+      source: {
+        canonicalDocumentVersion: this.textOrUndefined(source.canonicalDocumentVersion),
+        legacyDescriptionFallback: source.legacyDescriptionFallback === undefined ? undefined : Boolean(source.legacyDescriptionFallback),
+        sourceHash: this.textOrUndefined(source.sourceHash),
+        generatedAt: this.textOrUndefined(source.generatedAt),
+      },
+      overridesApplied: preview.overridesApplied === undefined ? undefined : Boolean(preview.overridesApplied),
+      warnings: Array.isArray(preview.warnings) ? preview.warnings.map((item) => String(item)).filter(Boolean) : [],
     };
   }
 
@@ -1327,6 +1370,12 @@ export class OffersService {
 
   private stringArray(value: any): string[] {
     return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
+  }
+
+  private textOrUndefined(value: any): string | undefined {
+    if (value === undefined || value === null) return undefined;
+    const text = String(value).trim();
+    return text || undefined;
   }
 
   private numberOrUndefined(value: any): number | undefined {
