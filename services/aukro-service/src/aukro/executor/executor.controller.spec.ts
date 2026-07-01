@@ -1,3 +1,5 @@
+process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://logging-microservice:3209';
+
 import { strict as assert } from 'assert';
 import { AukroExecutorController } from './executor.controller';
 import { AukroExecutorCreateInput } from './executor.types';
