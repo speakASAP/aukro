@@ -15,7 +15,7 @@ Record known validation failures that are not caused by the current task, so age
 
 | ID | Date | Command | Failure Summary | Scope | Owner | Blocks Current Task? | Unblock Condition | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| VD-2026-07-01-OFFERS-QUEUE-EXPECTATION | 2026-07-01 | `npm --prefix services/aukro-service test` | `services/aukro-service/src/aukro/offers/offers.service.spec.ts` expects publish attempt status `queued`, runtime returns `blocked`. | Aukro offer publish queue/policy test drift outside Orders forwarding and runtime token alias wiring. | Aukro offers owner | no | Align offer publish policy/test expectation and rerun full service test. | Observed assertion at `offers.service.spec.ts:197`: expected `queued`, actual `blocked`. |
+| _None recorded._ |  |  |  |  |  |  |  |
 
 ## Current-Task Decision Checklist
 
