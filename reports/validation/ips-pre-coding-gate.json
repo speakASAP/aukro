@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-15T10:32:38Z",
+  "created_at": "2026-06-30T21:43:11Z",
   "execution_plans": {
-    "execution_plan_count": 10,
+    "execution_plan_count": 14,
     "execution_plan_files": [
       "21_execution_plans/EP-TASK-001.md",
       "21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md",
@@ -12,7 +12,11 @@
       "21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md",
       "21_execution_plans/EP-TASK-008-revenue-analytics-events.md",
       "21_execution_plans/EP-TASK-009-operator-workbench-api.md",
-      "21_execution_plans/EP-TASK-010-workbench-bulk-preview.md"
+      "21_execution_plans/EP-TASK-010-workbench-bulk-preview.md",
+      "21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md",
+      "21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md",
+      "21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md",
+      "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
     ],
     "missing_validation_plan": []
   },
@@ -46,7 +50,7 @@
   "status": "pass",
   "tasks": {
     "missing_upstream_traceability": [],
-    "task_count": 10,
+    "task_count": 14,
     "task_files": [
       "11_tasks/TASK-001-implement-ips-governance-baseline.md",
       "11_tasks/TASK-002-create-ai-commerce-roadmap.md",
@@ -57,7 +61,11 @@
       "11_tasks/TASK-007-publish-queue-reconciliation.md",
       "11_tasks/TASK-008-revenue-analytics-events.md",
       "11_tasks/TASK-009-operator-workbench-api.md",
-      "11_tasks/TASK-010-workbench-bulk-preview.md"
+      "11_tasks/TASK-010-workbench-bulk-preview.md",
+      "11_tasks/TASK-011-document-aukro-platform-rules.md",
+      "11_tasks/TASK-012-catalog-content-preview-drafts.md",
+      "11_tasks/TASK-013-dashboard-bulk-publish-candidates.md",
+      "11_tasks/TASK-014-official-aukro-public-api-executor.md"
     ]
   }
 }

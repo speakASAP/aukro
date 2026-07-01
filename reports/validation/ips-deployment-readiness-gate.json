@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-06-15T10:32:38Z",
+  "created_at": "2026-06-30T21:43:11Z",
   "gate": "deployment_readiness",
   "next_step": "ready_for_deployment_review",
   "pre_coding_gate": {
@@ -19,8 +19,58 @@
     "score": 100,
     "status": "PASS"
   },
-  "target": "TASK-010",
+  "target": "TASK-014",
   "unresolved_markers": [
+    {
+      "line": 93,
+      "marker": "[MISSING: production Aukro API username/password/API key secret refs in k8s deployment]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 94,
+      "marker": "[MISSING: executor-specific base URL and sandbox/prod selection config]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 95,
+      "marker": "[MISSING: official numeric rate-limit contract or owner-approved local request budget]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 96,
+      "marker": "[MISSING: product-to-Aukro category/attribute mapping completeness for live offers]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 97,
+      "marker": "[MISSING: account shipping template selection evidence]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 98,
+      "marker": "[UNKNOWN: whether current Aukro account feature flags allow video uploads]",
+      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 29,
+      "marker": "[MISSING: current public official Aukro WebAPI endpoint, authentication-flow, and per-endpoint rate-limit documentation]",
+      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+    },
+    {
+      "line": 66,
+      "marker": "[MISSING: official numeric rate limits]",
+      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+    },
+    {
+      "line": 86,
+      "marker": "[UNKNOWN: category-specific Aukro exception]",
+      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+    },
+    {
+      "line": 192,
+      "marker": "[MISSING: ...]",
+      "path": "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
+    },
     {
       "line": 60,
       "marker": "[MISSING: ...]",
@@ -34,7 +84,7 @@
   ],
   "validation_reports": {
     "matching_reports": [
-      "12_validation/VAL-TASK-010-workbench-bulk-preview.md"
+      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md"
     ],
     "reports": [
       "12_validation/VAL-TASK-001-ips-governance-baseline.md",
@@ -46,9 +96,13 @@
       "12_validation/VAL-TASK-007-publish-queue-reconciliation.md",
       "12_validation/VAL-TASK-008-revenue-analytics-events.md",
       "12_validation/VAL-TASK-009-operator-workbench-api.md",
-      "12_validation/VAL-TASK-010-workbench-bulk-preview.md"
+      "12_validation/VAL-TASK-010-workbench-bulk-preview.md",
+      "12_validation/VAL-TASK-011-document-aukro-platform-rules.md",
+      "12_validation/VAL-TASK-012-catalog-content-preview-drafts.md",
+      "12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md",
+      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md"
     ],
     "status": "pass",
-    "target": "TASK-010"
+    "target": "TASK-014"
   }
 }

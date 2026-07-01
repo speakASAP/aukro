@@ -3,6 +3,32 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
 
+export interface CatalogContentPreviewSource {
+  canonicalDocumentVersion?: string;
+  legacyDescriptionFallback?: boolean;
+  sourceHash?: string;
+  generatedAt?: string;
+}
+
+export interface CatalogContentPreviewContent {
+  title?: string;
+  plainText?: string;
+  html?: string;
+  blocks?: any[];
+  sections?: any[];
+}
+
+export interface CatalogContentPreview {
+  marketplace: string;
+  label?: string;
+  format?: string;
+  product?: any;
+  content: CatalogContentPreviewContent;
+  source: CatalogContentPreviewSource;
+  overridesApplied?: boolean;
+  warnings?: string[];
+}
+
 /**
  * API client for catalog-microservice
  * Fetches product data from the central catalog
@@ -16,6 +42,25 @@ export class CatalogClientService {
     private readonly logger: LoggerService,
   ) {
     this.baseUrl = process.env.CATALOG_SERVICE_URL || 'http://catalog-microservice:3200';
+  }
+
+  private requestOptions() {
+    const token = (
+      process.env.CATALOG_SERVICE_TOKEN ||
+      process.env.JWT_TOKEN ||
+      process.env.SERVICE_TOKEN ||
+      ''
+    ).trim();
+
+    if (!token) {
+      return {};
+    }
+
+    return {
+      headers: {
+        Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+      },
+    };
   }
 
   /**
@@ -134,6 +179,28 @@ export class CatalogClientService {
       return response.data.data;
     } catch (error) {
       this.logger.warn(`Pricing not found for product ${productId}`, 'CatalogClient');
+      return null;
+    }
+  }
+
+  /**
+   * Get canonical content preview for a marketplace.
+   */
+  async getProductContentPreview(productId: string, marketplace: string): Promise<CatalogContentPreview | null> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(
+          `${this.baseUrl}/api/products/${encodeURIComponent(productId)}/content-previews/${encodeURIComponent(marketplace)}`,
+          this.requestOptions(),
+        )
+      );
+      if (!response.data?.success || !response.data?.data) {
+        return null;
+      }
+      return response.data.data as CatalogContentPreview;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Content preview not found for product ${productId} and marketplace ${marketplace}: ${errorMessage}`, 'CatalogClient');
       return null;
     }
   }

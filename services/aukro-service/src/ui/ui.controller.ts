@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Header, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthService, AuthUser, CatalogClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 
@@ -11,6 +11,11 @@ interface UiAuthRequest {
 
 interface UiPublishRequest {
   productId: string;
+  accountId?: string;
+}
+
+interface UiBulkPublishRequest {
+  productIds: string[];
   accountId?: string;
 }
 
@@ -93,17 +98,132 @@ export class UiController {
 
   @Get('ui/catalog/products')
   @UseGuards(JwtAuthGuard)
-  async catalogProducts(@Query() query: any) {
+  async catalogProducts(@Req() req: any, @Query() query: any) {
+    const user = req.user as AuthUser;
+    const account = await this.ensureAukroAccount(user);
     const limit = this.safeNumber(query.limit, 12, 1, 50);
     const page = this.safeNumber(query.page, 1, 1, 1000);
+    const search = query.search ? String(query.search) : undefined;
+    const categoryId = query.categoryId ? String(query.categoryId) : undefined;
+    const isActive = query.isActive === undefined ? true : String(query.isActive) === 'true';
+    const localOffers = await this.prisma.aukroOffer.findMany({
+      where: { accountId: account.id },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const offerByProductId = new Map(
+      localOffers
+        .filter((offer) => offer.productId)
+        .map((offer) => [String(offer.productId), offer]),
+    );
+    const publishedProductIds = new Set(
+      localOffers
+        .filter((offer) => offer.productId && offer.isActive && offer.aukroOfferId)
+        .map((offer) => String(offer.productId)),
+    );
 
-    return this.catalogClient.searchProducts({
-      search: query.search ? String(query.search) : undefined,
-      categoryId: query.categoryId ? String(query.categoryId) : undefined,
-      isActive: query.isActive === undefined ? true : String(query.isActive) === 'true',
+    const scanLimit = 50;
+    const maxScanned = 1000;
+    let scanPage = 1;
+    let scanned = 0;
+    let totalCatalog = 0;
+    const candidates: any[] = [];
+
+    while (scanned < maxScanned) {
+      const result = await this.catalogClient.searchProducts({
+        search,
+        categoryId,
+        isActive,
+        page: scanPage,
+        limit: scanLimit,
+      });
+      const items = result.items || [];
+      totalCatalog = result.total || totalCatalog;
+      scanned += items.length;
+      for (const item of items) {
+        if (!item?.id || publishedProductIds.has(String(item.id))) continue;
+        candidates.push(this.publicCatalogCandidate(item, offerByProductId.get(String(item.id))));
+      }
+      if (!items.length || items.length < scanLimit || scanned >= totalCatalog) break;
+      scanPage++;
+    }
+
+    const start = (page - 1) * limit;
+    const pagedItems = candidates.slice(start, start + limit);
+    return {
+      items: pagedItems,
+      total: candidates.length,
       page,
       limit,
-    });
+      totalPages: Math.max(Math.ceil(candidates.length / limit), 1),
+      scanned,
+      scanTruncated: scanned >= maxScanned && scanned < totalCatalog,
+    };
+  }
+
+  @Get('ui/offers')
+  @UseGuards(JwtAuthGuard)
+  async dashboardOffers(@Req() req: any, @Query() query: any) {
+    const user = req.user as AuthUser;
+    const account = await this.ensureAukroAccount(user);
+    const limit = this.safeNumber(query.limit, 12, 1, 50);
+    const page = this.safeNumber(query.page, 1, 1, 1000);
+    const search = this.textOrNull(query.search);
+    const status = this.textOrNull(query.status) || 'published';
+    const where: any = { accountId: account.id };
+
+    if (status === 'published') where.isActive = true;
+    if (status === 'draft') where.isActive = false;
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { aukroOfferId: { contains: search } },
+      ];
+    }
+
+    const [offers, total] = await Promise.all([
+      this.prisma.aukroOffer.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.aukroOffer.count({ where }),
+    ]);
+
+    return {
+      items: offers.map((offer) => this.publicOffer(offer)),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    };
+  }
+
+  @Get('ui/catalog/products/:productId/content-preview')
+  @UseGuards(JwtAuthGuard)
+  async catalogContentPreview(@Param('productId') productId: string) {
+    const preview = await this.catalogClient.getProductContentPreview(productId, 'aukro');
+    if (preview) {
+      return this.publicContentPreview(preview);
+    }
+
+    const product = await this.catalogClient.getProductById(productId);
+    return {
+      success: false,
+      marketplace: 'aukro',
+      label: 'Aukro',
+      format: 'plain-text',
+      content: {
+        title: this.textOrNull(product?.title ?? product?.name) || 'Produkt bez nazvu',
+        plainText: this.textOrNull(product?.description) || '',
+      },
+      source: {
+        legacyDescriptionFallback: true,
+      },
+      overridesApplied: false,
+      warnings: ['CATALOG_CONTENT_PREVIEW_UNAVAILABLE'],
+    };
   }
 
   @Post('ui/publish')
@@ -123,6 +243,71 @@ export class UiController {
       productId: body.productId,
       requestedBy: user.email || user.id,
     });
+  }
+
+  @Post('ui/publish/bulk')
+  @UseGuards(JwtAuthGuard)
+  async bulkPublish(@Req() req: any, @Body() body: UiBulkPublishRequest) {
+    const user = req.user as AuthUser;
+    const account = body.accountId
+      ? await this.prisma.aukroAccount.findUnique({ where: { id: body.accountId } })
+      : await this.ensureAukroAccount(user);
+
+    if (!account) {
+      throw new ForbiddenException('Aukro ucet neni dostupny pro prihlaseneho uzivatele.');
+    }
+
+    const productIds = Array.from(new Set((body.productIds || []).map((id) => String(id).trim()).filter(Boolean))).slice(0, 50);
+    if (!productIds.length) {
+      throw new BadRequestException('Vyberte alespon jeden produkt.');
+    }
+
+    const actorId = user.email || user.id;
+    const results: any[] = [];
+    for (const productId of productIds) {
+      try {
+        const draft = await this.offersService.createFromCatalog({
+          accountId: account.id,
+          productId,
+          requestedBy: actorId,
+        });
+        const offerId = draft?.offer?.id;
+        let publishIntent: any = null;
+        if (offerId) {
+          publishIntent = await this.offersService.enqueuePublish(offerId, {
+            actorId,
+            idempotencyKey: `ui-bulk-${account.id}-${productId}`,
+          });
+        }
+        results.push({
+          productId,
+          success: true,
+          action: draft.action,
+          draftStatus: draft.draftStatus,
+          offerId,
+          publishStatus: publishIntent?.attempt?.status || null,
+          mutationEnabled: Boolean(publishIntent?.attempt?.mutation?.enabled),
+          blockers: Array.from(new Set([...(draft.blockers || []), ...(publishIntent?.blockers || [])])),
+        });
+      } catch (error: any) {
+        results.push({
+          productId,
+          success: false,
+          error: error?.message || 'Produkt se nepodarilo zpracovat.',
+        });
+      }
+    }
+
+    const created = results.filter((result) => result.success).length;
+    return {
+      success: true,
+      requested: productIds.length,
+      created,
+      failed: results.length - created,
+      mutationEnabled: false,
+      note: 'Live Aukro mutation is still disabled; bulk action creates or refreshes drafts and records publish intent.',
+      results,
+    };
   }
 
   @Get('ui/admin/services')
@@ -145,6 +330,30 @@ export class UiController {
         { name: 'Notifications microservice', role: 'Upozorneni operatorum a klientum', route: '[internal]', owner: 'notifications-microservice' },
         { name: 'Logging microservice', role: 'Audit a provozni udalosti', route: '[internal]', owner: 'logging-microservice' },
       ],
+    };
+  }
+
+  private publicContentPreview(preview: any) {
+    const content = this.asRecord(preview.content);
+    const source = this.asRecord(preview.source);
+
+    return {
+      success: true,
+      marketplace: this.textOrNull(preview.marketplace) || 'aukro',
+      label: this.textOrNull(preview.label) || 'Aukro',
+      format: this.textOrNull(preview.format) || 'plain-text',
+      content: {
+        title: this.textOrNull(content.title) || 'Produkt bez nazvu',
+        plainText: this.textOrNull(content.plainText) || '',
+      },
+      source: {
+        canonicalDocumentVersion: this.textOrNull(source.canonicalDocumentVersion),
+        legacyDescriptionFallback: source.legacyDescriptionFallback === undefined ? undefined : Boolean(source.legacyDescriptionFallback),
+        sourceHash: this.textOrNull(source.sourceHash),
+        generatedAt: this.textOrNull(source.generatedAt),
+      },
+      overridesApplied: preview.overridesApplied === undefined ? undefined : Boolean(preview.overridesApplied),
+      warnings: Array.isArray(preview.warnings) ? preview.warnings.map((item) => String(item)).filter(Boolean) : [],
     };
   }
 
@@ -196,6 +405,29 @@ export class UiController {
       publishStatus: publishQueue.status || null,
       reconciliationStatus: this.asRecord(reconciliation.lastReport).status || null,
       updatedAt: offer.updatedAt,
+    };
+  }
+
+  private publicCatalogCandidate(product: any, offer?: any) {
+    const rawData = this.asRecord(offer?.rawData);
+    const draft = this.asRecord(rawData.draft);
+    const publishQueue = this.asRecord(rawData.publishQueue);
+    const title = this.textOrNull(product?.title ?? product?.name) || 'Produkt bez názvu';
+    const imageUrl = this.extractImageUrl(product);
+    const publishedOnAukro = Boolean(offer?.isActive && offer?.aukroOfferId);
+
+    return {
+      id: product.id,
+      title,
+      imageUrl,
+      price: this.numberOrNull(product?.price ?? product?.basePrice ?? product?.pricing?.price ?? product?.pricing?.basePrice),
+      isActive: product?.isActive === undefined ? undefined : Boolean(product.isActive),
+      existingOfferId: offer?.id || null,
+      aukroOfferId: offer?.aukroOfferId || null,
+      publishedOnAukro,
+      draftStatus: draft.draftStatus || null,
+      publishStatus: publishQueue.status || null,
+      blockers: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
     };
   }
 
@@ -660,9 +892,30 @@ export class UiController {
       padding: 8px;
       overflow: hidden;
       text-align: left;
+      position: relative;
     }
     button.compact-product-card { cursor: pointer; }
     button.compact-product-card:hover { border-color: var(--aukro-orange); box-shadow: 0 4px 14px rgba(255, 90, 0, .18); }
+    .compact-product-card.is-selected { border-color: var(--aukro-orange); box-shadow: 0 4px 14px rgba(255, 90, 0, .2); }
+    .product-select {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 2;
+      width: 22px;
+      height: 22px;
+      accent-color: var(--aukro-orange);
+    }
+    .card-preview-button {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      min-height: 28px;
+      padding: 0 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
     .compact-product-media {
       min-height: 0;
       border-radius: 6px;
@@ -695,6 +948,7 @@ export class UiController {
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
+    .compact-product-meta { min-height: 18px; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .price { font-size: 22px; font-weight: 700; text-align: right; }
     .muted { color: var(--muted); }
     .tabs-bar {
@@ -742,6 +996,53 @@ export class UiController {
     .message { min-height: 24px; color: var(--muted); }
     .message.ok { color: var(--ok); }
     .message.warn { color: var(--warn); }
+    .bulk-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      padding: 10px 12px;
+      margin: 8px 0 12px;
+    }
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .pager button { min-width: 92px; }
+    .catalog-preview {
+      margin: 12px 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .catalog-preview-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+    .catalog-preview-title { margin: 0; font-size: 18px; line-height: 1.25; }
+    .catalog-preview-text {
+      max-height: 180px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 10px;
+      white-space: pre-wrap;
+      color: var(--ink);
+    }
     .workspace { display: grid; gap: 16px; }
     .list { display: grid; gap: 10px; }
     .listing-row {
@@ -947,8 +1248,32 @@ export class UiController {
               <div class="panel">
                 <h2 class="section-title">Produkty k publikování na Aukro</h2>
                 <div class="toolbar"><input id="search" class="field" type="search" placeholder="Vyhledat produkt v katalogu" /><button id="loadProducts" type="button">Načíst produkty</button></div>
+                <div class="bulk-bar">
+                  <div><strong id="selectedCount">0 vybráno</strong><div class="muted">Zobrazujeme pouze produkty, které nejsou aktivně publikované v tomto Aukro účtu.</div></div>
+                  <div class="toolbar"><button id="selectPageProducts" type="button">Vybrat stránku</button><button id="clearSelectedProducts" type="button">Zrušit výběr</button><button class="primary" id="bulkPublishProducts" type="button">Publikovat vybrané</button></div>
+                </div>
                 <div class="message" id="catalogMessage"></div>
+                <div class="catalog-preview hidden" id="catalogPreview">
+                  <div class="catalog-preview-head">
+                    <div>
+                      <h3 class="catalog-preview-title" id="catalogPreviewTitle"></h3>
+                      <div class="meta" id="catalogPreviewMeta"></div>
+                    </div>
+                    <span class="pill" id="catalogPreviewFormat"></span>
+                  </div>
+                  <div class="catalog-preview-text" id="catalogPreviewText"></div>
+                  <div class="message" id="catalogPreviewWarnings"></div>
+                  <div class="toolbar"><button class="primary" id="confirmDraft" type="button">Vytvorit draft</button><button id="cancelPreview" type="button">Zavrit preview</button></div>
+                </div>
                 <div class="compact-product-grid" id="products"></div>
+                <div class="pager" id="catalogPager"></div>
+              </div>
+              <div class="panel">
+                <h2 class="section-title">Produkty na Aukro účtu</h2>
+                <div class="toolbar"><input id="offerSearch" class="field" type="search" placeholder="Vyhledat v Aukro produktech" /><button id="loadOfferProducts" type="button">Načíst produkty</button></div>
+                <div class="message" id="auctionProductsMessage"></div>
+                <div class="compact-product-grid" id="auctionProducts"></div>
+                <div class="pager" id="auctionProductsPager"></div>
               </div>
               <div class="panel">
                 <h2 class="section-title">Produkty prodané na Aukro</h2>
@@ -973,7 +1298,19 @@ export class UiController {
     </section>
   </main>
   <script>
-    const state = { token: localStorage.getItem('aukroAccessToken') || '', me: null, dashboard: null };
+    const state = {
+      token: localStorage.getItem('aukroAccessToken') || '',
+      me: null,
+      dashboard: null,
+      pendingProductId: '',
+      catalogPage: 1,
+      catalogLimit: 12,
+      catalogItems: [],
+      selectedProductIds: new Set(),
+      offerPage: 1,
+      offerLimit: 12,
+      offerItems: [],
+    };
     const $ = (id) => document.getElementById(id);
     const page = document.body.dataset.page;
     const hostedLoginUrl = '${hostedLoginUrl}';
@@ -1056,6 +1393,10 @@ export class UiController {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message || 'Produkty se nepodařilo načíst.';
       });
+      loadOfferProducts().catch((error) => {
+        $('auctionProductsMessage').className = 'message warn';
+        $('auctionProductsMessage').textContent = error.message || 'Aukro produkty se nepodařilo načíst.';
+      });
       if (dashboard.isAukroAdmin) {
         loadAdmin().catch(() => {
           $('adminView').style.display = 'none';
@@ -1099,21 +1440,71 @@ export class UiController {
       $('ordersMessage').textContent = soldProducts.length ? 'Prodáno na Aukro: ' + soldProducts.length + ' produktů.' : 'Zatím nejsou uložené žádné prodané produkty z Aukro.';
       $('orders').innerHTML = soldProducts.map((item) => compactProductCard(item, false)).join('');
     };
+    const updateSelectedCount = () => {
+      $('selectedCount').textContent = state.selectedProductIds.size + ' vybráno';
+      document.querySelectorAll('[data-select-product]').forEach((input) => {
+        input.checked = state.selectedProductIds.has(input.dataset.selectProduct);
+        const card = input.closest('.compact-product-card');
+        if (card) card.classList.toggle('is-selected', input.checked);
+      });
+    };
     const loadProducts = async () => {
       $('catalogMessage').className = 'message';
       $('catalogMessage').textContent = 'Načítám produkty z catalog-microservice...';
       const search = $('search').value.trim();
-      const result = await api('/aukro/ui/catalog/products?limit=12' + (search ? '&search=' + encodeURIComponent(search) : ''));
+      const result = await api('/aukro/ui/catalog/products?limit=' + state.catalogLimit + '&page=' + state.catalogPage + (search ? '&search=' + encodeURIComponent(search) : ''));
       const items = result.items || [];
-      $('catalogMessage').textContent = items.length ? 'Produkty jsou připravené k publikování.' : 'V katalogu nebyly nalezeny žádné produkty.';
+      state.catalogItems = items;
+      $('catalogMessage').className = result.scanTruncated ? 'message warn' : 'message';
+      $('catalogMessage').textContent = items.length
+        ? 'K publikování: ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
+        : 'V katalogu nejsou žádné nepublikované produkty pro tento filtr.';
       $('products').innerHTML = items.map((item) => productCard(item)).join('');
-      document.querySelectorAll('[data-publish]').forEach((button) => button.addEventListener('click', () => publishProduct(button.dataset.publish, button)));
+      renderPager('catalogPager', result.page, result.totalPages, (nextPage) => {
+        state.catalogPage = nextPage;
+        loadProducts().catch((error) => {
+          $('catalogMessage').className = 'message warn';
+          $('catalogMessage').textContent = error.message;
+        });
+      });
+      updateSelectedCount();
+      document.querySelectorAll('[data-preview]').forEach((button) => button.addEventListener('click', () => previewProduct(button.dataset.preview, button)));
+      document.querySelectorAll('[data-select-product]').forEach((input) => input.addEventListener('change', () => {
+        if (input.checked) state.selectedProductIds.add(input.dataset.selectProduct);
+        else state.selectedProductIds.delete(input.dataset.selectProduct);
+        updateSelectedCount();
+      }));
+    };
+    const loadOfferProducts = async () => {
+      $('auctionProductsMessage').className = 'message';
+      $('auctionProductsMessage').textContent = 'Načítám produkty z Aukro účtu...';
+      const search = $('offerSearch').value.trim();
+      const result = await api('/aukro/ui/offers?status=published&limit=' + state.offerLimit + '&page=' + state.offerPage + (search ? '&search=' + encodeURIComponent(search) : ''));
+      const items = result.items || [];
+      state.offerItems = items;
+      $('auctionProductsMessage').textContent = items.length
+        ? 'Na Aukro účtu: ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
+        : 'Zatím tu nejsou žádné aktivní produkty z Aukro účtu.';
+      $('auctionProducts').innerHTML = items.map((item) => compactProductCard({
+        id: item.id,
+        title: item.title || 'Nabídka bez názvu',
+        imageUrl: item.imageUrl || '',
+        meta: item.aukroOfferId ? 'Aukro ID ' + item.aukroOfferId : 'aktivní lokální záznam',
+      }, false)).join('');
+      renderPager('auctionProductsPager', result.page, result.totalPages, (nextPage) => {
+        state.offerPage = nextPage;
+        loadOfferProducts().catch((error) => {
+          $('auctionProductsMessage').className = 'message warn';
+          $('auctionProductsMessage').textContent = error.message;
+        });
+      });
     };
     const productCard = (item) => {
       return compactProductCard({
         id: item.id,
         title: item.title || item.name || 'Produkt bez názvu',
         imageUrl: imageUrlFor(item),
+        meta: item.draftStatus ? 'draft ' + item.draftStatus : 'nepublikováno',
       }, true);
     };
     const compactProductCard = (item, publishable) => {
@@ -1121,11 +1512,22 @@ export class UiController {
       const initial = String(title).trim().charAt(0).toUpperCase() || 'A';
       const imageUrl = item.imageUrl || imageUrlFor(item);
       const media = '<span class="compact-product-media">' + (imageUrl ? '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(title) + '" loading="lazy" />' : '<span class="photo-placeholder">' + escapeHtml(initial) + '</span>') + '</span>';
-      const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>';
+      const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>' + (item.meta ? '<span class="compact-product-meta">' + escapeHtml(item.meta) + '</span>' : '');
       if (publishable) {
-        return '<button class="compact-product-card" type="button" data-publish="' + escapeHtml(item.id) + '">' + body + '</button>';
+        const checked = state.selectedProductIds.has(String(item.id)) ? ' checked' : '';
+        return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + '"><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + ' aria-label="Vybrat produkt" />' + body + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
       }
       return '<article class="compact-product-card">' + body + '</article>';
+    };
+    const renderPager = (targetId, pageValue, totalPages, onPage) => {
+      const pageNumber = Number(pageValue || 1);
+      const pages = Math.max(Number(totalPages || 1), 1);
+      const target = $(targetId);
+      target.innerHTML = '<button type="button" data-page-prev ' + (pageNumber <= 1 ? 'disabled' : '') + '>Předchozí</button><span class="pill">Stránka ' + pageNumber + ' / ' + pages + '</span><button type="button" data-page-next ' + (pageNumber >= pages ? 'disabled' : '') + '>Další</button>';
+      const prev = target.querySelector('[data-page-prev]');
+      const next = target.querySelector('[data-page-next]');
+      if (prev) prev.addEventListener('click', () => onPage(Math.max(pageNumber - 1, 1)));
+      if (next) next.addEventListener('click', () => onPage(Math.min(pageNumber + 1, pages)));
     };
     const imageUrlFor = (source) => {
       if (!source) return '';
@@ -1152,6 +1554,39 @@ export class UiController {
       }
       return '';
     };
+    const renderCatalogPreview = (preview) => {
+      state.pendingProductId = preview.productId || state.pendingProductId;
+      $('catalogPreview').classList.remove('hidden');
+      const content = preview.content || {};
+      const source = preview.source || {};
+      const warnings = Array.isArray(preview.warnings) ? preview.warnings : [];
+      $('catalogPreviewTitle').textContent = content.title || 'Produkt bez nazvu';
+      $('catalogPreviewFormat').textContent = preview.format || 'plain-text';
+      $('catalogPreviewText').textContent = content.plainText || 'Bez textu preview.';
+      $('catalogPreviewMeta').innerHTML = '<span class="pill">' + escapeHtml(preview.marketplace || 'aukro') + '</span>' +
+        (source.canonicalDocumentVersion ? '<span class="pill">verze ' + escapeHtml(source.canonicalDocumentVersion) + '</span>' : '') +
+        (source.sourceHash ? '<span class="pill">hash ' + escapeHtml(source.sourceHash) + '</span>' : '') +
+        (source.generatedAt ? '<span class="pill">' + escapeHtml(source.generatedAt) + '</span>' : '') +
+        (source.legacyDescriptionFallback ? '<span class="pill">fallback</span>' : '');
+      $('catalogPreviewWarnings').className = warnings.length ? 'message warn' : 'message ok';
+      $('catalogPreviewWarnings').textContent = warnings.length ? 'Varovani: ' + warnings.join(', ') : 'Canonical content preview je pripraveny pro draft.';
+    };
+    const previewProduct = async (productId, button) => {
+      state.pendingProductId = productId;
+      button.disabled = true;
+      $('catalogMessage').className = 'message';
+      $('catalogMessage').textContent = 'Nacitam Aukro content preview...';
+      try {
+        const preview = await api('/aukro/ui/catalog/products/' + encodeURIComponent(productId) + '/content-preview');
+        preview.productId = productId;
+        renderCatalogPreview(preview);
+        $('catalogMessage').className = preview.success ? 'message ok' : 'message warn';
+        $('catalogMessage').textContent = preview.success ? 'Preview je pripravene pred vytvorenim draftu.' : 'Canonical preview neni dostupne; zobrazen je katalogovy fallback.';
+      } catch (error) {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = error.message;
+      } finally { button.disabled = false; }
+    };
     const publishProduct = async (productId, button) => {
       button.disabled = true;
       $('catalogMessage').textContent = 'Vytvářím Aukro draft...';
@@ -1159,8 +1594,39 @@ export class UiController {
         const result = await api('/aukro/ui/publish', { method: 'POST', body: JSON.stringify({ productId }) });
         $('catalogMessage').className = 'message ok';
         $('catalogMessage').textContent = 'Aukro draft ' + (result.action === 'reused' ? 'byl znovu použit' : 'byl vytvořen') + '. Stav: ' + result.draftStatus + '. ' + (result.blockers?.length ? 'Blokery: ' + result.blockers.join(', ') : 'Bez blokerů.');
+        $('catalogPreview').classList.add('hidden');
+        state.pendingProductId = '';
         const dashboard = await api('/aukro/ui/dashboard');
         renderDashboard(dashboard);
+        await loadProducts();
+        await loadOfferProducts();
+      } catch (error) {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = error.message;
+      } finally { button.disabled = false; }
+    };
+    const bulkPublishSelected = async () => {
+      const productIds = Array.from(state.selectedProductIds);
+      if (!productIds.length) {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = 'Vyberte alespoň jeden produkt.';
+        return;
+      }
+      const button = $('bulkPublishProducts');
+      button.disabled = true;
+      $('catalogMessage').className = 'message';
+      $('catalogMessage').textContent = 'Zpracovávám ' + productIds.length + ' produktů...';
+      try {
+        const result = await api('/aukro/ui/publish/bulk', { method: 'POST', body: JSON.stringify({ productIds }) });
+        const blocked = (result.results || []).filter((item) => item.blockers && item.blockers.length).length;
+        $('catalogMessage').className = result.failed ? 'message warn' : 'message ok';
+        $('catalogMessage').textContent = 'Hotovo: ' + result.created + ' z ' + result.requested + ' produktů. Publish intent je record-only; live Aukro mutace zatím neběží.' + (blocked ? ' Blokery u ' + blocked + ' položek.' : '');
+        state.selectedProductIds.clear();
+        updateSelectedCount();
+        const dashboard = await api('/aukro/ui/dashboard');
+        renderDashboard(dashboard);
+        await loadProducts();
+        await loadOfferProducts();
       } catch (error) {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message;
@@ -1178,7 +1644,36 @@ export class UiController {
     if (page === 'dashboard') {
       consumeAuthFragment();
       updateHeaderAuth();
-      $('loadProducts').addEventListener('click', loadProducts);
+      $('loadProducts').addEventListener('click', () => {
+        state.catalogPage = 1;
+        loadProducts().catch((error) => {
+          $('catalogMessage').className = 'message warn';
+          $('catalogMessage').textContent = error.message;
+        });
+      });
+      $('loadOfferProducts').addEventListener('click', () => {
+        state.offerPage = 1;
+        loadOfferProducts().catch((error) => {
+          $('auctionProductsMessage').className = 'message warn';
+          $('auctionProductsMessage').textContent = error.message;
+        });
+      });
+      $('selectPageProducts').addEventListener('click', () => {
+        state.catalogItems.forEach((item) => state.selectedProductIds.add(String(item.id)));
+        updateSelectedCount();
+      });
+      $('clearSelectedProducts').addEventListener('click', () => {
+        state.selectedProductIds.clear();
+        updateSelectedCount();
+      });
+      $('bulkPublishProducts').addEventListener('click', bulkPublishSelected);
+      $('confirmDraft').addEventListener('click', () => {
+        if (state.pendingProductId) publishProduct(state.pendingProductId, $('confirmDraft'));
+      });
+      $('cancelPreview').addEventListener('click', () => {
+        state.pendingProductId = '';
+        $('catalogPreview').classList.add('hidden');
+      });
       $('logout').addEventListener('click', logout);
       if (state.token) showClient().catch(handleDashboardError);
       else redirectToAuth();
