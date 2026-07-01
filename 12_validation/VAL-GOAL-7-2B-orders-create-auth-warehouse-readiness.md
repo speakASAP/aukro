@@ -1,11 +1,11 @@
 ---
 id: VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness
-status: blocked
+status: partial
 target: Orders Goal 7.2B Aukro create-order auth and warehouseId readiness
 owner: Engineering
 created: 2026-07-01
 last_updated: 2026-07-01
-completeness_level: runtime-blocked-live-smoke
+completeness_level: runtime-credential-ready-live-smoke-missing
 upstream:
   - 01_vision/VISION.md
   - SYSTEM.md
@@ -23,7 +23,7 @@ Validator: AI agent
 
 ## Summary
 
-Aukro source and deployment contain the Orders create-order credential gate and Warehouse-owned `warehouseId` forwarding logic, but the owner-approved live create smoke remains blocked by Aukro-side Warehouse lookup credentials. A sanitized 2026-07-01 recheck after the Orders runtime credential repair confirmed Orders `WAREHOUSE_SERVICE_TOKEN` is Auth-valid, while Aukro `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, and `WAREHOUSE_SERVICE_TOKEN` still return Auth HTTP 401 for the Auth validate endpoint. The deployed image is localhost registry Aukro tag `91f80cd`; the pod is ready and running; public `/health` returns the expected status payload for `aukro-service`.
+Aukro source and deployment contain the Orders create-order credential gate and Warehouse-owned `warehouseId` forwarding logic. On 2026-07-01 an Auth-owned Aukro Warehouse service principal was created, granted `internal:warehouse-microservice:admin`, written to the Auth-owned `AUKRO_WAREHOUSE_SERVICE_TOKEN` Vault property, mapped into Aukro as `WAREHOUSE_SERVICE_TOKEN`, synced through ExternalSecret, and loaded by a restarted Aukro pod. Warehouse receiver preflight now rejects no-auth and bogus bearer requests with HTTP 401 while accepting Aukro `WAREHOUSE_SERVICE_TOKEN` with HTTP 200 for a synthetic product stock lookup. The deployed image remains localhost registry Aukro tag `91f80cd`; this was a secret/config reload, not a source image deploy.
 
 No token values, decoded JWTs, raw orders, customer payloads, database rows, or payment data were printed or recorded. Runtime env validation was by name and presence only.
 
@@ -40,9 +40,9 @@ Goal 7.2B validates that Aukro can call Orders create-order through the runtime 
 | `channelAccountId` is stable | Pass | Source normalizes missing account id to `default`; order service forwards `order.accountId`. |
 | Product id is canonical Catalog product id | Pass | Order service resolves explicit catalog fields or looks up the mapped Aukro offer `productId`. |
 | `warehouseId` remains Warehouse-owned | Pass | Order service calls Warehouse stock lookup and rejects missing, invalid, or unavailable warehouse rows. |
-| Required runtime env names are present | Partial | Live pod has `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, `ORDER_SERVICE_URL`, `WAREHOUSE_SERVICE_URL`, and `WAREHOUSE_SERVICE_TOKEN` by presence check only; live Auth/Warehouse validation rejects the Warehouse credential. |
+| Required runtime env names are present | Pass | Live pod has `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, `ORDER_SERVICE_URL`, `WAREHOUSE_SERVICE_URL`, and `WAREHOUSE_SERVICE_TOKEN` by presence check only. |
 | Runtime deployment contains the source gates | Pass | Live compiled JS contains Orders headers and Warehouse guard strings. |
-| Live create-order smoke | Blocked | Owner approved a controlled live smoke, but pre-smoke credential checks still find Aukro Warehouse lookup credentials Auth-rejected; Orders Warehouse reservation credential now validates. |
+| Live create-order smoke | Missing | Runtime credential preflight is now ready, but the repo only contains a non-mutating mocked synthetic smoke. A safe live create/idempotency/Warehouse-reservation path with cleanup remains missing. |
 
 ## IPS Chain
 
@@ -94,7 +94,7 @@ Relevant commits:
 K8s manifests:
 
 - `k8s/configmap.yaml` defines `ORDER_SERVICE_URL` and `WAREHOUSE_SERVICE_URL`.
-- `k8s/external-secret.yaml` maps `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, and `WAREHOUSE_SERVICE_TOKEN`.
+- `k8s/external-secret.yaml` maps `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, and maps `WAREHOUSE_SERVICE_TOKEN` from Auth-owned `AUKRO_WAREHOUSE_SERVICE_TOKEN`.
 - `k8s/deployment.yaml` injects `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, and `WAREHOUSE_SERVICE_TOKEN`.
 
 ## Runtime Evidence
@@ -134,10 +134,11 @@ Health checks:
 Live pre-smoke Warehouse credential checks after owner approval:
 
 - Read-only candidate discovery found a Catalog-valid product with a Warehouse row available for quantity one; product and warehouse identifiers are intentionally omitted from this report.
-- Aukro pod calls to Warehouse stock API using `WAREHOUSE_SERVICE_TOKEN`, `JWT_TOKEN`, and `AUKRO_INTERNAL_SERVICE_TOKEN` each returned HTTP 401.
-- Auth validate endpoint returned `valid=false` for those three Aukro token env names in the original pre-smoke check.
-- A 2026-07-01 sanitized recheck against the canonical Auth validate endpoint returned HTTP 401 for Aukro `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, and `WAREHOUSE_SERVICE_TOKEN`.
-- The same recheck showed Orders `WAREHOUSE_SERVICE_TOKEN` now returns HTTP 201 with `valid=true`, so the remaining live smoke blocker is Aukro-side Warehouse lookup auth.
+- Original checks showed Aukro pod calls to Warehouse stock API using `WAREHOUSE_SERVICE_TOKEN`, `JWT_TOKEN`, and `AUKRO_INTERNAL_SERVICE_TOKEN` each returned HTTP 401.
+- On 2026-07-01 an Auth-owned Aukro Warehouse service principal was created for `aukro-service`, assigned `internal:warehouse-microservice:admin`, and the issued token was written to Vault without printing it.
+- `k8s/external-secret.yaml` now maps Aukro `WAREHOUSE_SERVICE_TOKEN` from the Auth-owned `AUKRO_WAREHOUSE_SERVICE_TOKEN` Vault property; Kubernetes server dry-run and apply passed, ExternalSecret refreshed with `Ready=True`, and the Aukro Deployment was restarted.
+- Post-restart Warehouse receiver comparison from the Aukro pod returned `no_auth=401`, `bogus_bearer=401`, and `WAREHOUSE_SERVICE_TOKEN=200` for a synthetic product stock lookup.
+- A direct Auth validate call from the Aukro pod still returned HTTP 401 for the token, but the Warehouse receiver contract is the authoritative consumer path and accepted the token while rejecting missing/bogus credentials.
 - Only env names, HTTP statuses, boolean validity, and role/identity shape were inspected; token values were not printed, decoded, copied, or persisted.
 
 ## Validation Commands
@@ -160,11 +161,11 @@ The concurrent fix commit `91f80cd` imported `AuthModule` into `AukroExecutorMod
 
 ## Smoke Decision
 
-Owner approved a controlled live create-order smoke after this validation report was first written. Pre-smoke candidate discovery found a Catalog-valid product and Warehouse row with available stock, but the smoke was stopped before `POST /aukro/orders/webhook` because the Aukro Warehouse lookup credential failed Auth/Warehouse validation.
+Owner approved a controlled live create-order smoke after this validation report was first written. The original smoke was stopped before `POST /aukro/orders/webhook` because the Aukro Warehouse lookup credential failed Auth/Warehouse validation. That credential blocker is now resolved at the Warehouse receiver boundary.
 
-Running the Aukro path after that failure would create a local Aukro order before failing central forwarding, leaving a known-failing local data mutation without proving canonical Orders create. A later sanitized recheck confirmed Orders runtime Warehouse reservation credentials now validate, but Aukro Warehouse lookup credentials still fail Auth validation.
+The repo-defined TASK-016 smoke is intentionally non-mutating and mocked: it proves the create-order contract, headers, Catalog `productId`, and Warehouse `warehouseId` mapping without live Orders, Warehouse, marketplace, payment, or database writes. No repo-approved live synthetic create/idempotency/Warehouse-reservation path with cleanup was found.
 
-No canonical Orders create, no local Aukro order create, and no Warehouse reservation were attempted after this blocker was confirmed. The safe validation substitute remains source-level contract inspection, focused mocked specs, compiled runtime string checks, env-name presence checks, health checks, and live pre-smoke credential checks.
+No canonical Orders create, no local Aukro order create, and no Warehouse reservation were attempted in this follow-up. The remaining missing evidence is `[MISSING: owner-approved live synthetic Aukro create/idempotency/Warehouse-reservation smoke path with cleanup]`.
 
 ## Deviations
 
@@ -195,20 +196,20 @@ Focused specs are deterministic and mocked. No live create-order replay or produ
 
 ## Issues found
 
-- Runtime blocker remains: Auth-compatible Warehouse service credentials are absent or not mapped for the Aukro lookup path; the Orders reservation credential now validates.
-- Owner-approved live Aukro-to-Orders create smoke was intentionally not run after credential preflight failed; forcing it would leave a known-failing local data mutation without proving canonical create.
+- Runtime credential blocker is resolved at the Warehouse receiver boundary; Aukro `WAREHOUSE_SERVICE_TOKEN` is accepted by Warehouse while missing/bogus credentials are rejected.
+- Owner-approved live Aukro-to-Orders create smoke was not run because the repository only provides a non-mutating mocked synthetic smoke and no safe live create/idempotency/reservation cleanup path was found.
 - This external coordinator lane does not currently have a dedicated repository-local Goal 7.2B task or execution plan; `TASK-004` and `EP-TASK-004` are the closest approved traceability anchors.
 - First deploy to `b867c33` failed on an executor AuthModule dependency issue; `91f80cd` fixed it and deployed successfully.
 
 ## Remaining MISSING markers
 
-- `[MISSING: Auth-compatible Warehouse service credential for Aukro runtime Warehouse lookup path]`
+- `[MISSING: owner-approved live synthetic Aukro create/idempotency/Warehouse-reservation smoke path with cleanup]`
 - `[MISSING: repository-local task document for Orders Goal 7.2B]`
 - `[MISSING: repository-local execution plan for Orders Goal 7.2B]`
 
 ## Recommendation
 
-Do not accept live create-order readiness yet. First provision or map an Auth-compatible Warehouse service credential for Aukro lookup, then rerun the controlled Aukro-to-Orders create/idempotency smoke without printing token values or raw customer/order data.
+Accept runtime credential readiness for Aukro Warehouse lookup, but do not claim live create-order smoke completion yet. Add or approve a live synthetic create/idempotency/Warehouse-reservation smoke path with cleanup, then run it without printing token values or raw customer/order data.
 
 ## Traceability confirmation
 
