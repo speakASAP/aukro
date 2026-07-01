@@ -8,6 +8,9 @@ nodes:
 - id: FEAT-001
   type: Feature
   path: 10_features/FEAT-001-offer-management.md
+- id: FEAT-003
+  type: Feature
+  path: 10_features/FEAT-003-order-forwarding.md
 - id: FEAT-004
   type: Feature
   path: 10_features/FEAT-004-aukro-compliance-policy.md
@@ -278,6 +281,24 @@ nodes:
 - id: VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness
   type: ValidationReport
   path: 12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md
+- id: TASK-016
+  type: Task
+  path: 11_tasks/TASK-016-orders-create-synthetic-smoke.md
+- id: EP-TASK-016
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md
+- id: CP-TASK-016
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-016-orders-create-synthetic-smoke.md
+- id: PROMPT-TASK-016-orders-create-synthetic-smoke
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-016-orders-create-synthetic-smoke.md
+- id: GOAL-IMPACT-TASK-016
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-016.md
+- id: VAL-TASK-016-orders-create-synthetic-smoke
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md
 
 edges:
 - from: TASK-001
@@ -708,3 +729,36 @@ edges:
 - from: VAL-TASK-014-official-aukro-public-api-executor
   type: validates
   to: TASK-014
+- from: TASK-016
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-016
+  type: implements
+  to: FEAT-003
+- from: TASK-016
+  type: implements
+  to: FEAT-009
+- from: TASK-016
+  type: decomposes_into
+  to: EP-TASK-016
+- from: TASK-016
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-016
+- from: EP-TASK-016
+  type: derives_from
+  to: TASK-016
+- from: EP-TASK-016
+  type: generates
+  to: PROMPT-TASK-016-orders-create-synthetic-smoke
+- from: EP-TASK-016
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-016-orders-create-synthetic-smoke
+  type: derives_from
+  to: EP-TASK-016
+- from: PROMPT-TASK-016-orders-create-synthetic-smoke
+  type: included_in_context
+  to: CP-TASK-016
+- from: VAL-TASK-016-orders-create-synthetic-smoke
+  type: validates
+  to: TASK-016

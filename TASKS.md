@@ -10,6 +10,7 @@
 
 ## Completed
 <!-- Coordinator-append-only -->
+- 2026-07-01 task-016-orders-create-synthetic-smoke: added owner-approved non-mutating create-order smoke command with synthetic in-memory Orders/Warehouse/DB fixtures and sanitized runtime validation.
 - 2026-06-29 task-011-document-aukro-platform-rules: documented official Aukro platform rules, automation hard stops, WebAPI gaps, and policy-code guardrail for FEAT-004.
 - 2026-06-15 task-010-workbench-bulk-preview: added read-only bulk preview API with safe account/type/priority filters, limit capping, synthetic tests, and IPS validation package for roadmap Stage 6.
 - 2026-06-14 task-009-operator-workbench-api: added read-only workbench summary, review queue, offer detail API, synthetic tests, and IPS validation package for roadmap Stage 6.
