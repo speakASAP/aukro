@@ -45,11 +45,11 @@ TASK-012 supports `10_features/FEAT-005-catalog-warehouse-publisher.md` by impro
 
 ## Issues found
 
-No current-task validation issues remain. The first service test run failed because `@aukro/shared` resolves through `shared/dist`; rebuilding shared updated the generated runtime/types and the rerun passed.
+No current-task validation issues remain. The first service test run failed because `@aukro/shared` depends on generated shared package output; rerunning `npm --prefix shared run build` regenerated the package output and the service test rerun passed.
 
 ## Recommendation
 
-Accept TASK-012 for human diff review. Do not deploy from this lane because deployment is outside the requested scope.
+Accept TASK-012 for human diff review and merge after the Catalog preview endpoint is live.
 
 ## Traceability confirmation
 
