@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-06-30T21:43:11Z",
+  "created_at": "2026-07-01T06:43:51Z",
   "gate": "deployment_readiness",
   "next_step": "ready_for_deployment_review",
   "pre_coding_gate": {
@@ -23,12 +23,7 @@
   "unresolved_markers": [
     {
       "line": 93,
-      "marker": "[MISSING: production Aukro API username/password/API key secret refs in k8s deployment]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
-    },
-    {
-      "line": 94,
-      "marker": "[MISSING: executor-specific base URL and sandbox/prod selection config]",
+      "marker": "[MISSING: production Aukro API username/password/API key values in the external secret backend; k8s env and secret refs are wired]",
       "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {

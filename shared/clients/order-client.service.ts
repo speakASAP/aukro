@@ -20,6 +20,7 @@ interface CreateCentralOrderRequest {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
+    warehouseId: string;
   }>;
   subtotal: number;
   shippingCost: number;
@@ -55,9 +56,12 @@ export class OrderClientService {
       channelAccountId: this.normalizeChannelAccountId(orderData.channelAccountId),
     };
 
+    this.assertCreateOrderPayload(payload);
+    const requestOptions = this.createOrderRequestOptions();
+
     try {
       const response = await firstValueFrom(
-        this.httpService.post(this.baseUrl + '/api/orders', payload),
+        this.httpService.post(this.baseUrl + '/api/orders', payload, requestOptions),
       );
       this.logger.log('Order accepted by orders-microservice: ' + response.data.data?.id, 'OrderClient');
       return response.data.data;
@@ -102,6 +106,27 @@ export class OrderClientService {
     } catch (error: unknown) {
       this.logger.warn('Order not found: ' + externalOrderId, 'OrderClient');
       return null;
+    }
+  }
+
+  private createOrderRequestOptions(): { headers: Record<string, string> } {
+    const token = process.env.AUKRO_INTERNAL_SERVICE_TOKEN?.trim();
+    if (!token) {
+      throw new HttpException('ORDER_SERVICE_AUTH_TOKEN_MISSING', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    return {
+      headers: {
+        'x-internal-service-token': token,
+        'x-service-name': 'aukro-service',
+      },
+    };
+  }
+
+  private assertCreateOrderPayload(payload: CreateCentralOrderRequest): void {
+    const missingWarehouseId = payload.items.some((item) => !item.warehouseId?.trim());
+    if (missingWarehouseId) {
+      throw new HttpException('ORDER_FORWARDING_WAREHOUSE_ID_MISSING', HttpStatus.BAD_REQUEST);
     }
   }
 

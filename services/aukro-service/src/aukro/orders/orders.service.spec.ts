@@ -6,12 +6,15 @@ const { OrdersService } = require('./orders.service');
 const accountId = '11111111-1111-4111-8111-111111111111';
 const catalogProductId = '22222222-2222-4222-8222-222222222222';
 const otherCatalogProductId = '33333333-3333-4333-8333-333333333333';
+const warehouseId = '55555555-5555-4555-8555-555555555555';
+const otherWarehouseId = '66666666-6666-4666-8666-666666666666';
 
-function createHarness(offers: any[] = []) {
+function createHarness(offers: any[] = [], stockRows: any[] = []) {
   const centralOrders: any[] = [];
   const updates: any[] = [];
   const offerQueries: any[] = [];
   const errors: string[] = [];
+  const stockLookups: string[] = [];
 
   const prisma = {
     aukroOrder: {
@@ -56,6 +59,13 @@ function createHarness(offers: any[] = []) {
     },
   };
 
+  const warehouseClient = {
+    getStockByProduct: async (productId: string) => {
+      stockLookups.push(productId);
+      return stockRows.filter((row) => row.productId === productId);
+    },
+  };
+
   const logger = {
     setContext() {},
     log() {},
@@ -63,8 +73,8 @@ function createHarness(offers: any[] = []) {
     error(message: string) { errors.push(message); },
   };
 
-  const service = new OrdersService(prisma as any, orderClient as any, logger as any);
-  return { service, centralOrders, updates, offerQueries, errors };
+  const service = new OrdersService(prisma as any, orderClient as any, warehouseClient as any, logger as any);
+  return { service, centralOrders, updates, offerQueries, errors, stockLookups };
 }
 
 async function run() {
@@ -75,6 +85,8 @@ async function run() {
       aukroOfferId: 'aukro-offer-123',
       productId: catalogProductId,
     },
+  ], [
+    { productId: catalogProductId, warehouseId, quantity: 5, reserved: 1, available: 4 },
   ]);
 
   await mapped.service.create({
@@ -103,12 +115,15 @@ async function run() {
   assert.equal(mapped.centralOrders[0].total, 251);
   assert.equal(mapped.centralOrders[0].items.length, 1);
   assert.equal(mapped.centralOrders[0].items[0].productId, catalogProductId);
+  assert.equal(mapped.centralOrders[0].items[0].warehouseId, warehouseId);
   assert.equal(mapped.centralOrders[0].items[0].quantity, 2);
   assert.equal(mapped.centralOrders[0].items[0].unitPrice, 125.5);
   assert.equal(mapped.centralOrders[0].items[0].totalPrice, 251);
   assert.equal(mapped.updates[0].data.forwarded, true);
 
-  const explicit = createHarness();
+  const explicit = createHarness([], [
+    { productId: otherCatalogProductId, warehouseId: otherWarehouseId, quantity: 3, reserved: 0, available: 3 },
+  ]);
   await explicit.service.create({
     accountId,
     aukroOrderId: 'aukro-order-2',
@@ -127,9 +142,32 @@ async function run() {
   assert.equal(explicit.offerQueries.length, 0);
   assert.equal(explicit.centralOrders.length, 1);
   assert.equal(explicit.centralOrders[0].items[0].productId, otherCatalogProductId);
+  assert.equal(explicit.centralOrders[0].items[0].warehouseId, otherWarehouseId);
+
+  const explicitWarehouse = createHarness([], [
+    { productId: otherCatalogProductId, warehouseId: otherWarehouseId, quantity: 1, reserved: 0, available: 1 },
+  ]);
+  await explicitWarehouse.service.create({
+    accountId,
+    aukroOrderId: 'aukro-order-2b',
+    total: 50,
+    rawData: {
+      items: [{
+        productId: otherCatalogProductId,
+        productIdSource: 'catalog',
+        warehouseId: otherWarehouseId,
+        title: 'Explicit catalog and warehouse item',
+        quantity: 1,
+        price: 50,
+      }],
+    },
+  });
+
+  assert.equal(explicitWarehouse.centralOrders.length, 1);
+  assert.equal(explicitWarehouse.centralOrders[0].items[0].warehouseId, otherWarehouseId);
 
   const unmapped = createHarness();
-  await unmapped.service.create({
+  await assert.rejects(() => unmapped.service.create({
     accountId,
     aukroOrderId: 'aukro-order-3',
     total: 75,
@@ -141,12 +179,38 @@ async function run() {
         price: 75,
       }],
     },
-  });
+  }), /could not be mapped to a Catalog product/);
 
   assert.equal(unmapped.centralOrders.length, 0);
   assert.equal(unmapped.updates.length, 0);
   assert.equal(unmapped.errors.length, 1);
   assert.match(unmapped.errors[0], /could not be mapped to a Catalog product/);
+
+  const missingWarehouse = createHarness([
+    {
+      id: '77777777-7777-4777-8777-777777777777',
+      accountId,
+      aukroOfferId: 'aukro-offer-456',
+      productId: catalogProductId,
+    },
+  ], []);
+
+  await assert.rejects(() => missingWarehouse.service.create({
+    accountId,
+    aukroOrderId: 'aukro-order-4',
+    total: 75,
+    rawData: {
+      items: [{
+        offerId: 'aukro-offer-456',
+        title: 'Warehouse missing item',
+        quantity: 1,
+        price: 75,
+      }],
+    },
+  }), /ORDER_FORWARDING_WAREHOUSE_ID_MISSING/);
+
+  assert.equal(missingWarehouse.centralOrders.length, 0);
+  assert.equal(missingWarehouse.updates.length, 0);
 }
 
 run().catch((error) => {

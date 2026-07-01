@@ -3,7 +3,7 @@ id: TASK-014
 status: reviewed
 owner: Engineering
 created: 2026-06-30
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 completeness_level: complete
 upstream:
   - ../10_features/FEAT-001-offer-management.md
@@ -90,8 +90,8 @@ Source checked on 2026-06-30 from `https://api.aukro.cz/assets/openapi.yaml`.
 
 ## Current Blockers
 
-- [MISSING: production Aukro API username/password/API key secret refs in k8s deployment]
-- [MISSING: executor-specific base URL and sandbox/prod selection config]
+- [MISSING: production Aukro API username/password/API key values in the external secret backend; k8s env and secret refs are wired]
+- [RESOLVED: executor-specific production base URL and prod selection config are wired in `.env.example` and `k8s/configmap.yaml`]
 - [MISSING: official numeric rate-limit contract or owner-approved local request budget]
 - [MISSING: product-to-Aukro category/attribute mapping completeness for live offers]
 - [MISSING: account shipping template selection evidence]

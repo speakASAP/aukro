@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService, LoggerService, OrderClientService } from '@aukro/shared';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService, LoggerService, OrderClientService, WarehouseClientService } from '@aukro/shared';
 
 type CentralOrderItem = {
   productId: string;
@@ -8,6 +8,7 @@ type CentralOrderItem = {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  warehouseId: string;
 };
 
 @Injectable()
@@ -17,6 +18,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orderClient: OrderClientService,
+    private readonly warehouseClient: WarehouseClientService,
     loggerService: LoggerService,
   ) {
     this.logger = loggerService;
@@ -78,7 +80,9 @@ export class OrdersService {
 
       this.logger.log(`Order ${order.id} forwarded to orders-microservice: ${centralOrder.id}`);
     } catch (error: any) {
-      this.logger.error(`Failed to forward order to orders-microservice: ${error.message}`);
+      const message = error?.message || 'UNKNOWN_ORDER_FORWARDING_FAILURE';
+      this.logger.error(`Failed to forward order to orders-microservice: ${message}`);
+      throw error;
     }
 
     return order;
@@ -86,7 +90,7 @@ export class OrdersService {
 
   async handleWebhook(data: any): Promise<any> {
     try {
-      this.logger.log('Received Aukro webhook', { data });
+      this.logger.log('Received Aukro webhook');
 
       // Real Aukro webhook shape is [UNKNOWN]; keep parsing to the current synthetic/internal contract.
       const {
@@ -169,13 +173,15 @@ export class OrdersService {
   }
 
   private async buildCentralOrderItem(order: any, item: Record<string, any>): Promise<CentralOrderItem> {
-    const productId = await this.resolveCatalogProductId(order, item);
     const quantity = this.positiveNumber(item.quantity ?? item.qty, 1);
+    const productId = await this.resolveCatalogProductId(order, item);
+    const warehouseId = await this.resolveWarehouseId(order, item, productId, quantity);
     const unitPrice = this.numberValue(item.unitPrice ?? item.price ?? item.amount, 0);
     const totalPrice = this.numberValue(item.totalPrice ?? item.total ?? item.lineTotal, unitPrice * quantity);
 
     return {
       productId,
+      warehouseId,
       sku: this.optionalString(item.sku),
       title: this.optionalString(item.title ?? item.name) || 'Unknown',
       quantity,
@@ -218,6 +224,65 @@ export class OrdersService {
     }
 
     return String(offer.productId);
+  }
+
+  private async resolveWarehouseId(order: any, item: Record<string, any>, productId: string, quantity: number): Promise<string> {
+    const explicitWarehouseId = this.explicitWarehouseId(item);
+    const stockRows = await this.warehouseClient.getStockByProduct(productId);
+    const availableRows = stockRows
+      .map((row) => this.asRecord(row))
+      .map((row) => ({
+        warehouseId: this.optionalString(row.warehouseId),
+        available: this.availableStock(row),
+      }))
+      .filter((row): row is { warehouseId: string; available: number } => Boolean(row.warehouseId));
+
+    if (explicitWarehouseId) {
+      const matchingRow = availableRows.find((row) => row.warehouseId === explicitWarehouseId);
+      if (!matchingRow) {
+        throw new BadRequestException(`ORDER_FORWARDING_WAREHOUSE_ID_INVALID for product ${productId}`);
+      }
+      if (matchingRow.available < quantity) {
+        throw new BadRequestException(`ORDER_FORWARDING_WAREHOUSE_STOCK_UNAVAILABLE for product ${productId}`);
+      }
+      return explicitWarehouseId;
+    }
+
+    const availableRow = availableRows.find((row) => row.available >= quantity);
+    if (!availableRow) {
+      throw new BadRequestException(`ORDER_FORWARDING_WAREHOUSE_ID_MISSING for product ${productId}`);
+    }
+
+    return availableRow.warehouseId;
+  }
+
+  private explicitWarehouseId(item: Record<string, any>): string | undefined {
+    const warehouse = this.asRecord(item.warehouse);
+    const stock = this.asRecord(item.stock);
+    const availability = this.asRecord(item.availability);
+    const inventory = this.asRecord(item.inventory);
+    const candidates = [
+      item.warehouseId,
+      item.warehouse_id,
+      warehouse.id,
+      warehouse.warehouseId,
+      stock.warehouseId,
+      availability.warehouseId,
+      inventory.warehouseId,
+    ];
+
+    return candidates.map((candidate) => this.optionalString(candidate)).find(Boolean);
+  }
+
+  private availableStock(row: Record<string, any>): number {
+    const explicitAvailable = this.numberValue(row.available, Number.NaN);
+    if (Number.isFinite(explicitAvailable)) {
+      return explicitAvailable;
+    }
+
+    const quantity = this.numberValue(row.quantity, 0);
+    const reserved = this.numberValue(row.reserved, 0);
+    return Math.max(quantity - reserved, 0);
   }
 
   private extractRawOrderItems(rawData: any): any[] {

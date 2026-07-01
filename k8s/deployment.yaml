@@ -51,6 +51,30 @@ spec:
                 secretKeyRef:
                   name: aukro-service-secret
                   key: WAREHOUSE_SERVICE_TOKEN
+            - name: AUKRO_PUBLIC_API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: AUKRO_PUBLIC_API_USERNAME
+                  optional: true
+            - name: AUKRO_PUBLIC_API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: AUKRO_PUBLIC_API_PASSWORD
+                  optional: true
+            - name: AUKRO_PUBLIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: AUKRO_PUBLIC_API_KEY
+                  optional: true
+            - name: AUKRO_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: AUKRO_WEBHOOK_SECRET
+                  optional: true
           startupProbe:
             httpGet:
               path: /health
