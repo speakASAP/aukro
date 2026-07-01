@@ -275,6 +275,9 @@ nodes:
 - id: VAL-TASK-014-official-aukro-public-api-executor
   type: ValidationReport
   path: 12_validation/VAL-TASK-014-official-aukro-public-api-executor.md
+- id: VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness
+  type: ValidationReport
+  path: 12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md
 
 edges:
 - from: TASK-001
@@ -380,6 +383,9 @@ edges:
   type: included_in_context
   to: CP-TASK-004
 - from: VAL-TASK-004-service-integration-clients
+  type: validates
+  to: TASK-004
+- from: VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness
   type: validates
   to: TASK-004
 
