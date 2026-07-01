@@ -23,7 +23,7 @@ Validator: AI agent
 
 ## Summary
 
-Aukro source and deployment contain the Orders create-order credential gate and Warehouse-owned `warehouseId` forwarding logic. On 2026-07-01 Auth-owned Warehouse service principals were created for Aukro and Orders, granted `internal:warehouse-microservice:admin`, written to Vault-backed runtime properties without printing token values, synced through ExternalSecret, and loaded by restarted Aukro and Orders pods. Aukro and Orders `WAREHOUSE_SERVICE_TOKEN` values now validate through Auth and are accepted by Warehouse. A controlled synthetic live create smoke created one Aukro local order, created the canonical Orders reference, reserved Warehouse stock once, replayed the local webhook without duplicate local rows, and replayed the canonical Orders create idempotently without a second reservation. The deployed Aukro image remains localhost registry tag `91f80cd`; this was a secret/config reload and runtime smoke, not a source image deploy.
+Aukro source and deployment contain the Orders create-order credential gate and Warehouse-owned `warehouseId` forwarding logic. On 2026-07-01 Auth-owned Warehouse service principals were created for Aukro and Orders, granted `internal:warehouse-microservice:admin`, written to Vault-backed runtime properties without printing token values, synced through ExternalSecret, and loaded by restarted Aukro and Orders pods. Aukro and Orders `WAREHOUSE_SERVICE_TOKEN` values now validate through Auth and are accepted by Warehouse. A controlled synthetic live create smoke created one Aukro local order, created the canonical Orders reference, reserved Warehouse stock once, replayed the local webhook without duplicate local rows, replayed the canonical Orders create idempotently without a second reservation, and then cancelled the synthetic canonical order through Orders lifecycle cleanup so Warehouse handoff moved from reserved to cancelled. The deployed Aukro image remains localhost registry tag `91f80cd`; this was a secret/config reload and runtime smoke, not a source image deploy.
 
 No token values, decoded JWTs, raw orders, customer payloads, database rows, or payment data were printed or recorded. Runtime env validation was by name and presence only.
 
@@ -42,7 +42,7 @@ Goal 7.2B validates that Aukro can call Orders create-order through the runtime 
 | `warehouseId` remains Warehouse-owned | Pass | Order service calls Warehouse stock lookup and rejects missing, invalid, or unavailable warehouse rows. |
 | Required runtime env names are present | Pass | Live pod has `JWT_TOKEN`, `AUKRO_INTERNAL_SERVICE_TOKEN`, `ORDER_SERVICE_URL`, `WAREHOUSE_SERVICE_URL`, and `WAREHOUSE_SERVICE_TOKEN` by presence check only. |
 | Runtime deployment contains the source gates | Pass | Live compiled JS contains Orders headers and Warehouse guard strings. |
-| Live create-order smoke | Pass | Synthetic external order `synthetic-aukro-live-smoke-1782898959721` created a local Aukro order, stored a central Orders reference, observed Warehouse reservation, replayed locally with count 1, and replayed directly to Orders without a second reservation. |
+| Live create-order smoke | Pass | Synthetic external order `synthetic-aukro-live-smoke-1782898959721` created a local Aukro order, stored a central Orders reference, observed Warehouse reservation, replayed locally with count 1, replayed directly to Orders without a second reservation, and was cancelled through Orders cleanup. |
 
 ## IPS Chain
 
@@ -160,6 +160,7 @@ Live pre-smoke Warehouse credential checks after owner approval:
 - Orders credential preflight after restart: Auth validate HTTP 201 `valid=true`, Warehouse stock lookup HTTP 200.
 - Live synthetic Aukro create smoke: Pass, `synthetic-aukro-live-smoke-1782898959721`, local forwarded true, central reference stored, Warehouse reservation observed.
 - Direct Orders idempotency replay: Pass, HTTP 201 success, Warehouse reservation unchanged.
+- Orders lifecycle cleanup: Pass, synthetic canonical order moved `pending` to `cancelled`; Warehouse handoff moved `reserved` to `cancelled`; no token values or raw payloads printed.
 
 ## Deployment Evidence
 
@@ -173,7 +174,7 @@ Owner approved a controlled live create-order smoke after this validation report
 
 The live smoke used a synthetic external order id, synthetic item title, no customer fields, no payment fields, a Catalog-valid product id, and a Warehouse-owned warehouse id. It invoked deployed Aukro `OrdersService.handleWebhook` inside the running pod to exercise the production mapping, Warehouse lookup client, Orders client, central Orders create, and Warehouse reservation handoff without requiring a browser user token.
 
-Result: local Aukro order was created and marked forwarded, a central Orders reference was stored, Warehouse stock moved from available 3/reserved 0 to available 2/reserved 1, local webhook replay kept exactly one local order row, and direct canonical Orders replay returned success while Warehouse remained available 2/reserved 1. No token values, customer data, provider payloads, or payment data were printed.
+Result: local Aukro order was created and marked forwarded, a central Orders reference was stored, Warehouse stock moved from available 3/reserved 0 to available 2/reserved 1, local webhook replay kept exactly one local order row, and direct canonical Orders replay returned success while Warehouse remained available 2/reserved 1. After approval, cleanup was executed through Orders lifecycle cancellation; the synthetic canonical order moved from pending to cancelled and Warehouse handoff moved from reserved to cancelled. No token values, customer data, provider payloads, or payment data were printed.
 
 ## Deviations
 
@@ -200,12 +201,12 @@ Validation used synthetic test fixtures, source inspection, env-name presence ch
 
 ## Replay and determinism evidence
 
-Focused specs are deterministic and mocked. The live smoke used a synthetic persistent order id and is replayable only for idempotency, not as a new create. The direct Orders replay returned success without changing Warehouse reservation totals, proving the canonical idempotency path did not duplicate the reservation.
+Focused specs are deterministic and mocked. The live smoke used a synthetic persistent order id and is replayable only for idempotency, not as a new create. The direct Orders replay returned success without changing Warehouse reservation totals, proving the canonical idempotency path did not duplicate the reservation. Cleanup was also deterministic: Orders cancellation used explicit approval metadata and transitioned the Warehouse handoff from reserved to cancelled through the Orders-owned lifecycle path.
 
 ## Issues found
 
 - Runtime credential blocker is resolved: Aukro and Orders Warehouse service credentials validate through Auth and are accepted by Warehouse.
-- Owner-approved live Aukro-to-Orders create smoke passed with synthetic data and no duplicate reservation on replay.
+- Owner-approved live Aukro-to-Orders create smoke passed with synthetic data, no duplicate reservation on replay, and Orders lifecycle cleanup completed.
 - This external coordinator lane does not currently have a dedicated repository-local Goal 7.2B task or execution plan; `TASK-004` and `EP-TASK-004` are the closest approved traceability anchors.
 - First deploy to `b867c33` failed on an executor AuthModule dependency issue; `91f80cd` fixed it and deployed successfully.
 
@@ -216,7 +217,7 @@ Focused specs are deterministic and mocked. The live smoke used a synthetic pers
 
 ## Recommendation
 
-Accept Aukro Orders Goal 7.2B runtime readiness for canonical Orders create. The completed live smoke used synthetic persisted data; no cleanup was run in this lane. Future live smokes should use a documented reusable fixture and explicit cleanup/expiry policy if stock restoration must be immediate.
+Accept Aukro Orders Goal 7.2B runtime readiness for canonical Orders create. The completed live smoke used synthetic persisted data and cleanup was run through Orders lifecycle cancellation. Future live smokes should still use a documented reusable fixture and explicit cleanup/expiry policy.
 
 ## Traceability confirmation
 
