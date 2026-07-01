@@ -1,10 +1,10 @@
 {
-  "created_at": "2026-07-01T06:43:51Z",
+  "created_at": "2026-07-01T08:18:41Z",
   "gate": "deployment_readiness",
-  "next_step": "ready_for_deployment_review",
+  "next_step": "fix_deployment_readiness_findings",
   "pre_coding_gate": {
     "report_path": "reports/validation/ips-pre-coding-gate.json",
-    "status": "pass"
+    "status": "fail"
   },
   "protected_files": {
     "changed_files": [],
@@ -13,13 +13,13 @@
   },
   "root": "/home/ssf/Documents/Github/aukro-service",
   "schema_version": "1.0.0",
-  "status": "pass",
+  "status": "fail",
   "strict_doc_audit": {
     "findings_count": 0,
     "score": 100,
     "status": "PASS"
   },
-  "target": "TASK-014",
+  "target": "TASK-016",
   "unresolved_markers": [
     {
       "line": 93,
@@ -45,6 +45,51 @@
       "line": 98,
       "marker": "[UNKNOWN: whether current Aukro account feature flags allow video uploads]",
       "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+    },
+    {
+      "line": 89,
+      "marker": "[MISSING: final public HTTPS feed URL host and access-control strategy]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 90,
+      "marker": "[MISSING: complete catalog-to-Aukro MP category/field/shipment/pricelist mapping]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 91,
+      "marker": "[MISSING: confirmation that the account can enable running-offer updates in MP automatic import]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 92,
+      "marker": "[MISSING: operator-approved MP import settings and rollback plan]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 93,
+      "marker": "[MISSING: production media URL readiness for all candidate products]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 94,
+      "marker": "[MISSING: official Public API key for TASK-014; TASK-015 is only a fallback lane while that remains blocked]",
+      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+    },
+    {
+      "line": 205,
+      "marker": "[MISSING: Auth-compatible Warehouse service credential for Aukro and Orders runtime reservation path]",
+      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
+    },
+    {
+      "line": 206,
+      "marker": "[MISSING: repository-local task document for Orders Goal 7.2B]",
+      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
+    },
+    {
+      "line": 207,
+      "marker": "[MISSING: repository-local execution plan for Orders Goal 7.2B]",
+      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
     {
       "line": 29,
@@ -79,9 +124,11 @@
   ],
   "validation_reports": {
     "matching_reports": [
-      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md"
+      "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
+      "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md"
     ],
     "reports": [
+      "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md",
       "12_validation/VAL-TASK-001-ips-governance-baseline.md",
       "12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
       "12_validation/VAL-TASK-003-aukro-compliance-policy.md",
@@ -95,9 +142,11 @@
       "12_validation/VAL-TASK-011-document-aukro-platform-rules.md",
       "12_validation/VAL-TASK-012-catalog-content-preview-drafts.md",
       "12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md",
-      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md"
+      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md",
+      "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
+      "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md"
     ],
     "status": "pass",
-    "target": "TASK-014"
+    "target": "TASK-016"
   }
 }

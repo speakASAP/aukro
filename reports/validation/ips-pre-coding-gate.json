@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-07-01T06:43:51Z",
+  "created_at": "2026-07-01T08:18:41Z",
   "execution_plans": {
-    "execution_plan_count": 14,
+    "execution_plan_count": 16,
     "execution_plan_files": [
       "21_execution_plans/EP-TASK-001.md",
       "21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md",
@@ -16,13 +16,15 @@
       "21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md",
       "21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md",
       "21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md",
-      "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
+      "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md",
+      "21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md",
+      "21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md"
     ],
     "missing_validation_plan": []
   },
   "gate": "pre_coding",
   "missing_immutable_files": [],
-  "next_step": "start_controlled_coding",
+  "next_step": "fix_pre_coding_gate_findings",
   "project_invariants": {
     "path": "17_governance/PROJECT_INVARIANTS.md",
     "status": "pass"
@@ -33,7 +35,13 @@
   ],
   "root": "/home/ssf/Documents/Github/aukro-service",
   "schema_version": "1.0.0",
-  "sensitive_data_findings": [],
+  "sensitive_data_findings": [
+    {
+      "match": "include raw customer",
+      "path": "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
+      "pattern": "raw_production_data_instruction"
+    }
+  ],
   "shared_principles_with_dos": {
     "missing_sections": [],
     "path": "17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
@@ -47,10 +55,10 @@
     ],
     "status": "pass"
   },
-  "status": "pass",
+  "status": "fail",
   "tasks": {
     "missing_upstream_traceability": [],
-    "task_count": 14,
+    "task_count": 16,
     "task_files": [
       "11_tasks/TASK-001-implement-ips-governance-baseline.md",
       "11_tasks/TASK-002-create-ai-commerce-roadmap.md",
@@ -65,7 +73,9 @@
       "11_tasks/TASK-011-document-aukro-platform-rules.md",
       "11_tasks/TASK-012-catalog-content-preview-drafts.md",
       "11_tasks/TASK-013-dashboard-bulk-publish-candidates.md",
-      "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "11_tasks/TASK-014-official-aukro-public-api-executor.md",
+      "11_tasks/TASK-015-mp-xml-feed-executor.md",
+      "11_tasks/TASK-016-orders-create-synthetic-smoke.md"
     ]
   }
 }
