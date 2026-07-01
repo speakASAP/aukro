@@ -63,6 +63,11 @@ function run() {
     return true;
   });
 
+  assert.throws(() => generateMpFeedXml([buyNow, { ...buyNow }]), (error) => {
+    assertValidationCode(error, 'MP_FEED_DUPLICATE_EXTERNAL_ID');
+    return true;
+  });
+
   assert.throws(() => generateMpFeedXml(new Array(MP_FEED_MAX_PRODUCTS + 1).fill(buyNow)), (error) => {
     assertValidationCode(error, 'MP_FEED_LIMIT_EXCEEDED');
     return true;

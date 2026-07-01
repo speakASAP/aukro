@@ -17,6 +17,8 @@ export function generateMpFeedXml(products: MpFeedProduct[]): MpFeedGenerationRe
   }
 
   const sortedProducts = [...products].sort((left, right) => left.externalId.localeCompare(right.externalId));
+  assertUniqueExternalIds(sortedProducts);
+
   const body = sortedProducts.map((product) => renderTemplate(product)).join('\n');
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -42,6 +44,18 @@ export function generateMpFeedXml(products: MpFeedProduct[]): MpFeedGenerationRe
     byteSize,
     productCount: sortedProducts.length,
   };
+}
+
+function assertUniqueExternalIds(products: MpFeedProduct[]): void {
+  const seen = new Set<string>();
+  for (const product of products) {
+    if (seen.has(product.externalId)) {
+      throw new MpFeedValidationError('MP_FEED_DUPLICATE_EXTERNAL_ID', 'MP feed ExternalId values must be unique.', {
+        externalId: product.externalId,
+      });
+    }
+    seen.add(product.externalId);
+  }
 }
 
 function renderTemplate(product: MpFeedProduct): string {

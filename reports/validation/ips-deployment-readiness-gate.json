@@ -1,10 +1,10 @@
 {
-  "created_at": "2026-07-01T08:18:41Z",
+  "created_at": "2026-07-01T08:50:23Z",
   "gate": "deployment_readiness",
-  "next_step": "fix_deployment_readiness_findings",
+  "next_step": "ready_for_deployment_review",
   "pre_coding_gate": {
     "report_path": "reports/validation/ips-pre-coding-gate.json",
-    "status": "fail"
+    "status": "pass"
   },
   "protected_files": {
     "changed_files": [],
@@ -13,13 +13,13 @@
   },
   "root": "/home/ssf/Documents/Github/aukro-service",
   "schema_version": "1.0.0",
-  "status": "fail",
+  "status": "pass",
   "strict_doc_audit": {
     "findings_count": 0,
     "score": 100,
     "status": "PASS"
   },
-  "target": "TASK-016",
+  "target": "TASK-015",
   "unresolved_markers": [
     {
       "line": 93,
@@ -78,7 +78,7 @@
     },
     {
       "line": 205,
-      "marker": "[MISSING: Auth-compatible Warehouse service credential for Aukro and Orders runtime reservation path]",
+      "marker": "[MISSING: Auth-compatible Warehouse service credential for Aukro runtime Warehouse lookup path]",
       "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
     {
@@ -147,6 +147,6 @@
       "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md"
     ],
     "status": "pass",
-    "target": "TASK-016"
+    "target": "TASK-015"
   }
 }

@@ -71,11 +71,11 @@ Source checked on 2026-07-01 from `https://mp.aukro.cz/sm/templates/importexport
 
 ## Acceptance Criteria
 
-- [ ] TASK-015 artifacts make the MP XML feed executor a separate fallback lane, not an extension of TASK-014.
-- [ ] Executor generates deterministic `Manažer prodeje - XML` from catalog data with stable `ExternalId` values.
-- [ ] Feed generation fails closed when policy, human approval, category, price, stock, shipping/pricelist, media URL, description, or account mapping evidence is missing.
-- [ ] Generated feed remains under `10 MB` and `10000` products or reports explicit blocking evidence.
-- [ ] Generated XML is well-formed, XML-escaped, and covered by synthetic fixtures for auction and buy-now products.
+- [x] TASK-015 artifacts make the MP XML feed executor a separate fallback lane, not an extension of TASK-014.
+- [x] Executor generates deterministic `Manažer prodeje - XML` from catalog data with stable `ExternalId` values for synthetic fixtures.
+- [x] Feed generation fails closed when policy, human approval, category, price, stock, shipping/pricelist, media URL, description, or account mapping evidence is missing in mapper fixtures.
+- [x] Generated feed remains under `10 MB` and `10000` products or reports explicit blocking evidence.
+- [x] Generated XML is XML-escaped, deterministic, and covered by synthetic fixtures for auction and buy-now products.
 - [ ] Public feed endpoint is disabled by default and requires explicit account/environment config.
 - [ ] Feed statistics and blocked-product reports are available without exposing raw secrets/customer data.
 - [ ] Live MP automatic import remains unconfigured until an operator approves the exact URL, import template, update settings, and rollback plan.

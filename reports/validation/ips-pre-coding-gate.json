@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-07-01T08:18:41Z",
+  "created_at": "2026-07-01T08:50:22Z",
   "execution_plans": {
     "execution_plan_count": 16,
     "execution_plan_files": [
@@ -24,7 +24,7 @@
   },
   "gate": "pre_coding",
   "missing_immutable_files": [],
-  "next_step": "fix_pre_coding_gate_findings",
+  "next_step": "start_controlled_coding",
   "project_invariants": {
     "path": "17_governance/PROJECT_INVARIANTS.md",
     "status": "pass"
@@ -35,13 +35,7 @@
   ],
   "root": "/home/ssf/Documents/Github/aukro-service",
   "schema_version": "1.0.0",
-  "sensitive_data_findings": [
-    {
-      "match": "include raw customer",
-      "path": "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
-      "pattern": "raw_production_data_instruction"
-    }
-  ],
+  "sensitive_data_findings": [],
   "shared_principles_with_dos": {
     "missing_sections": [],
     "path": "17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
@@ -55,7 +49,7 @@
     ],
     "status": "pass"
   },
-  "status": "fail",
+  "status": "pass",
   "tasks": {
     "missing_upstream_traceability": [],
     "task_count": 16,

@@ -141,6 +141,7 @@ export type MpFeedValidationCode =
   | 'MP_FEED_IMAGE_MISSING'
   | 'MP_FEED_IMAGE_NOT_PUBLIC'
   | 'MP_FEED_EXTERNAL_ID_MISSING'
+  | 'MP_FEED_DUPLICATE_EXTERNAL_ID'
   | 'MP_FEED_LIMIT_EXCEEDED';
 
 export class MpFeedValidationError extends Error {
