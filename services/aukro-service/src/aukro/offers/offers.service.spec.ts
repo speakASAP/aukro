@@ -7,7 +7,7 @@ const { OfferPolicyService } = require('./policy/offer-policy.service');
 
 const fresh = new Date().toISOString();
 
-function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; contentPreview?: any; qualityReadiness?: any; qualityError?: Error; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
+function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; contentPreview?: any; qualityReadiness?: any; qualityError?: Error; existingOffer?: any; catalogProducts?: any[]; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -48,6 +48,7 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
   } : overrides.contentPreview;
   let existingOffer = overrides.existingOffer || null;
   let createCount = 0;
+  let updateCount = 0;
 
   const prisma = {
     aukroAccount: {
@@ -64,6 +65,7 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
         return existingOffer;
       },
       update: async (args: any) => {
+        updateCount++;
         existingOffer = { ...existingOffer, ...args.data, id: args.where.id, account };
         return existingOffer;
       },
@@ -76,6 +78,7 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
     getProductPricing: async () => pricing,
     getProductMedia: async () => media,
     getProductContentPreview: async () => contentPreview,
+    searchProducts: async () => ({ items: overrides.catalogProducts || [product], total: (overrides.catalogProducts || [product]).length, page: 1, limit: 100 }),
     getProductQualityReadiness: async () => {
       if (overrides.qualityError) throw overrides.qualityError;
       return qualityReadiness;
@@ -129,7 +132,7 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
     logger as any,
   );
 
-  return { service, getCreateCount: () => createCount, account, product, emittedEvents };
+  return { service, getCreateCount: () => createCount, getUpdateCount: () => updateCount, account, product, emittedEvents };
 }
 
 async function run() {
@@ -224,6 +227,72 @@ async function run() {
       return true;
     },
   );
+
+  const directCreateBlockedHarness = createHarness({
+    qualityReadiness: {
+      productId: '22222222-2222-2222-2222-222222222222',
+      lifecycle: 'active',
+      issues: [{ code: 'duplicate_sku', field: 'sku', severity: 'blocking', message: 'SKU is already used.' }],
+    },
+  });
+  await assert.rejects(
+    () => directCreateBlockedHarness.service.create({
+      accountId: directCreateBlockedHarness.account.id,
+      productId: directCreateBlockedHarness.product.id,
+      title: 'Direct linked offer',
+      description: 'Direct linked description',
+      price: 199,
+      stockQuantity: 1,
+    }),
+    (error: any) => {
+      assert.equal(error.getStatus(), 400);
+      assert.deepEqual(error.getResponse().blockers, ['duplicate_sku']);
+      assert.equal(directCreateBlockedHarness.getCreateCount(), 0);
+      return true;
+    },
+  );
+
+  const directUpdateBlockedHarness = createHarness({
+    existingOffer,
+    qualityReadiness: {
+      productId: existingOffer.productId,
+      lifecycle: 'active',
+      issues: [{ code: 'missing_image', field: 'image', severity: 'blocking', message: 'Image is required.' }],
+    },
+  });
+  await assert.rejects(
+    () => directUpdateBlockedHarness.service.update(existingOffer.id, { isActive: true }),
+    (error: any) => {
+      assert.equal(error.getStatus(), 400);
+      assert.deepEqual(error.getResponse().blockers, ['missing_image']);
+      assert.equal(directUpdateBlockedHarness.getUpdateCount(), 0);
+      return true;
+    },
+  );
+
+  const syncBlockedHarness = createHarness({
+    qualityReadiness: {
+      productId: '22222222-2222-2222-2222-222222222222',
+      lifecycle: 'active',
+      issues: [{ code: 'missing_current_price', field: 'price', severity: 'blocking', message: 'Current price is required.' }],
+    },
+  });
+  const syncBlocked = await syncBlockedHarness.service.syncFromCatalog({ accountId: syncBlockedHarness.account.id, limit: 1 });
+  assert.equal(syncBlocked.success, true);
+  assert.equal(syncBlocked.created, 0);
+  assert.equal(syncBlocked.updated, 0);
+  assert.equal(syncBlocked.policyBlocked, 1);
+  assert.equal(syncBlockedHarness.getCreateCount(), 0);
+  assert.equal(syncBlockedHarness.getUpdateCount(), 0);
+  assert.ok(syncBlocked.errors[0].includes('missing_current_price'));
+
+  const syncUnavailableHarness = createHarness({ qualityError: new Error('catalog quality unavailable') });
+  const syncUnavailable = await syncUnavailableHarness.service.syncFromCatalog({ accountId: syncUnavailableHarness.account.id, limit: 1 });
+  assert.equal(syncUnavailable.created, 0);
+  assert.equal(syncUnavailable.updated, 0);
+  assert.equal(syncUnavailable.policyBlocked, 1);
+  assert.equal(syncUnavailableHarness.getCreateCount(), 0);
+  assert.ok(syncUnavailable.errors[0].includes('CATALOG_QUALITY_REVIEW_UNAVAILABLE'));
 
   const proposalHarness = createHarness({ existingOffer: created.offer });
   const proposalResponse = await proposalHarness.service.createAiProposal(created.offer.id, {
