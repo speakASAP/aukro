@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-07-02T13:20:18Z",
+  "created_at": "2026-07-02T14:50:10Z",
   "execution_plans": {
     "execution_plan_count": 16,
     "execution_plan_files": [
@@ -24,7 +24,7 @@
   },
   "gate": "pre_coding",
   "missing_immutable_files": [],
-  "next_step": "start_controlled_coding",
+  "next_step": "fix_pre_coding_gate_findings",
   "project_invariants": {
     "path": "17_governance/PROJECT_INVARIANTS.md",
     "status": "pass"
@@ -35,7 +35,13 @@
   ],
   "root": "/home/ssf/Documents/Github/aukro",
   "schema_version": "1.0.0",
-  "sensitive_data_findings": [],
+  "sensitive_data_findings": [
+    {
+      "match": "copy raw customer",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md",
+      "pattern": "raw_production_data_instruction"
+    }
+  ],
   "shared_principles_with_dos": {
     "missing_sections": [],
     "path": "17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
@@ -49,7 +55,7 @@
     ],
     "status": "pass"
   },
-  "status": "pass",
+  "status": "fail",
   "tasks": {
     "missing_upstream_traceability": [],
     "task_count": 16,
