@@ -1832,6 +1832,9 @@ export class UiController {
       offerPage: 1,
       offerLimit: 12,
       offerItems: [],
+      dashboardPollTimer: null,
+      dashboardPollInFlight: false,
+      dashboardPollMs: 30000,
     };
     const $ = (id) => document.getElementById(id);
     const page = document.body.dataset.page;
@@ -1869,12 +1872,18 @@ export class UiController {
       history.replaceState(null, '', location.pathname + location.search);
       return true;
     };
+    const stopDashboardPolling = () => {
+      if (state.dashboardPollTimer) window.clearInterval(state.dashboardPollTimer);
+      state.dashboardPollTimer = null;
+    };
     const redirectToAuth = () => {
+      stopDashboardPolling();
       state.token = '';
       localStorage.removeItem('aukroAccessToken');
       location.replace(hostedLoginUrl);
     };
     const logout = () => {
+      stopDashboardPolling();
       state.token = '';
       localStorage.removeItem('aukroAccessToken');
       location.replace('/');
@@ -1910,15 +1919,40 @@ export class UiController {
       if (error.status === 401 || error.status === 403) redirectToAuth();
       else showDashboardError(error);
     };
+    const refreshDashboard = async ({ silent = false } = {}) => {
+      if (state.dashboardPollInFlight) return state.dashboard;
+      state.dashboardPollInFlight = true;
+      try {
+        const dashboard = await api('/aukro/ui/dashboard');
+        state.dashboard = dashboard;
+        state.me = dashboard;
+        updateHeaderAuth(dashboard);
+        renderDashboard(dashboard);
+        return dashboard;
+      } catch (error) {
+        if (!silent) throw error;
+        if (error.status === 401 || error.status === 403) redirectToAuth();
+        else if ($('ordersMessage')) {
+          $('ordersMessage').textContent = 'Automatická aktualizace Orders stavu selhala: ' + (error.message || 'neznámá chyba');
+        }
+        return state.dashboard;
+      } finally {
+        state.dashboardPollInFlight = false;
+      }
+    };
+    const startDashboardPolling = () => {
+      stopDashboardPolling();
+      state.dashboardPollTimer = window.setInterval(() => {
+        if (document.hidden || !state.token) return;
+        refreshDashboard({ silent: true });
+      }, state.dashboardPollMs);
+    };
     const showClient = async () => {
       await provisionCatalog();
-      const dashboard = await api('/aukro/ui/dashboard');
-      state.dashboard = dashboard;
-      state.me = dashboard;
-      updateHeaderAuth(dashboard);
+      const dashboard = await refreshDashboard();
       $('authView').classList.add('hidden');
       $('clientView').classList.remove('hidden');
-      renderDashboard(dashboard);
+      startDashboardPolling();
       loadProducts().catch((error) => {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message || 'Produkty se nepodařilo načíst.';
@@ -2257,8 +2291,7 @@ export class UiController {
         $('catalogMessage').textContent = 'Aukro draft ' + (result.action === 'reused' ? 'byl znovu použit' : 'byl vytvořen') + '. Stav: ' + result.draftStatus + '. ' + (result.blockers?.length ? 'Blokery: ' + result.blockers.join(', ') : 'Bez blokerů.');
         $('catalogPreview').classList.add('hidden');
         state.pendingProductId = '';
-        const dashboard = await api('/aukro/ui/dashboard');
-        renderDashboard(dashboard);
+        await refreshDashboard({ silent: true });
         await loadProducts();
         await loadOfferProducts();
       } catch (error) {
@@ -2284,8 +2317,7 @@ export class UiController {
         $('catalogMessage').textContent = 'Hotovo: ' + result.created + ' z ' + result.requested + ' produktů. Publish intent je record-only; live Aukro mutace zatím neběží.' + (blocked ? ' Blokery u ' + blocked + ' položek.' : '');
         state.selectedProductIds.clear();
         updateSelectedCount();
-        const dashboard = await api('/aukro/ui/dashboard');
-        renderDashboard(dashboard);
+        await refreshDashboard({ silent: true });
         await loadProducts();
         await loadOfferProducts();
       } catch (error) {
@@ -2314,6 +2346,10 @@ export class UiController {
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     updateHeaderAuth();
     $('headerLogout').addEventListener('click', logout);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && page === 'dashboard' && state.token) refreshDashboard({ silent: true });
+    });
+    window.addEventListener('pagehide', stopDashboardPolling);
     if (page === 'dashboard') {
       consumeAuthFragment();
       updateHeaderAuth();
