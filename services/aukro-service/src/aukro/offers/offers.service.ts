@@ -768,11 +768,11 @@ export class OffersService {
   }
 
   private catalogQualityErrorMessage(error: any): string {
-    const response = typeof error?.getResponse === function ? error.getResponse() : undefined;
-    if (response && typeof response === object && message in response) {
+    const response = typeof error?.getResponse === 'function' ? error.getResponse() : undefined;
+    if (response && typeof response === 'object' && 'message' in response) {
       return String((response as any).message);
     }
-    return error?.message || Catalog product quality blockers prevent Aukro mutation.;
+    return error?.message || 'Catalog product quality blockers prevent Aukro mutation.';
   }
 
   private async withDraftPolicySnapshot(offer: any, policyEvidence?: OfferPolicyEvidence): Promise<any> {
