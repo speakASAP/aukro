@@ -29,6 +29,11 @@ export interface CatalogContentPreview {
   warnings?: string[];
 }
 
+export interface CatalogProductRequestOptions {
+  authorization?: string | null;
+  catalogScope?: string;
+}
+
 /**
  * API client for catalog-microservice
  * Fetches product data from the central catalog
@@ -44,32 +49,73 @@ export class CatalogClientService {
     this.baseUrl = process.env.CATALOG_SERVICE_URL || 'http://catalog-microservice:3200';
   }
 
-  private requestOptions() {
-    const token = (
+  private bearerAuthorization(value?: string | null): string | null {
+    const token = (value || '').trim();
+    if (!token) return null;
+    return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+
+  private serviceAuthorization(): string | null {
+    return this.bearerAuthorization(
       process.env.CATALOG_SERVICE_TOKEN ||
       process.env.JWT_TOKEN ||
       process.env.SERVICE_TOKEN ||
       ''
-    ).trim();
+    );
+  }
 
-    if (!token) {
+  private requestOptions(): { headers?: { Authorization: string } } {
+    const authorization = this.serviceAuthorization();
+
+    if (!authorization) {
       return {};
     }
 
     return {
       headers: {
-        Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+        Authorization: authorization,
       },
     };
+  }
+
+  private userRequestOptions(authorization?: string | null): { headers?: { Authorization: string } } {
+    const header = this.bearerAuthorization(authorization);
+    return header ? { headers: { Authorization: header } } : {};
+  }
+
+  async provisionUserCatalog(authorization: string | null | undefined, sourceApplication: string): Promise<any> {
+    const options = this.userRequestOptions(authorization);
+    if (!options.headers?.Authorization) {
+      throw new HttpException('Catalog provisioning requires user authorization', HttpStatus.UNAUTHORIZED);
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.baseUrl}/api/catalog/access/provision`, { sourceApplication }, options)
+      );
+      return response.data?.data || response.data;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to provision user catalog access: ${errorMessage}`, errorStack, 'CatalogClient');
+      throw new HttpException('Failed to provision user catalog access', HttpStatus.BAD_GATEWAY);
+    }
   }
 
   /**
    * Get product by ID
    */
-  async getProductById(productId: string): Promise<any> {
+  async getProductById(productId: string, options: CatalogProductRequestOptions = {}): Promise<any> {
     try {
+      const params = new URLSearchParams();
+      if (options.catalogScope) params.append('catalogScope', options.catalogScope);
+      const query = params.toString();
+      const requestOptions = options.authorization ? this.userRequestOptions(options.authorization) : undefined;
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/products/${productId}`)
+        this.httpService.get(
+          `${this.baseUrl}/api/products/${encodeURIComponent(productId)}${query ? `?${query}` : ''}`,
+          requestOptions,
+        )
       );
       return response.data.data;
     } catch (error: unknown) {
@@ -108,6 +154,8 @@ export class CatalogClientService {
     categoryId?: string;
     page?: number;
     limit?: number;
+    catalogScope?: string;
+    authorization?: string | null;
   }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
     try {
       const params = new URLSearchParams();
@@ -116,9 +164,11 @@ export class CatalogClientService {
       if (query.categoryId) params.append('categoryId', query.categoryId);
       if (query.page) params.append('page', String(query.page));
       if (query.limit) params.append('limit', String(query.limit));
+      if (query.catalogScope) params.append('catalogScope', query.catalogScope);
+      const requestOptions = query.authorization ? this.userRequestOptions(query.authorization) : undefined;
 
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/products?${params.toString()}`)
+        this.httpService.get(`${this.baseUrl}/api/products?${params.toString()}`, requestOptions)
       );
       return {
         items: response.data.data || [],
@@ -186,12 +236,15 @@ export class CatalogClientService {
   /**
    * Get canonical content preview for a marketplace.
    */
-  async getProductContentPreview(productId: string, marketplace: string): Promise<CatalogContentPreview | null> {
+  async getProductContentPreview(productId: string, marketplace: string, options: CatalogProductRequestOptions = {}): Promise<CatalogContentPreview | null> {
     try {
+      const params = new URLSearchParams();
+      if (options.catalogScope) params.append('catalogScope', options.catalogScope);
+      const query = params.toString();
       const response = await firstValueFrom(
         this.httpService.get(
-          `${this.baseUrl}/api/products/${encodeURIComponent(productId)}/content-previews/${encodeURIComponent(marketplace)}`,
-          this.requestOptions(),
+          `${this.baseUrl}/api/products/${encodeURIComponent(productId)}/content-previews/${encodeURIComponent(marketplace)}${query ? `?${query}` : ''}`,
+          options.authorization ? this.userRequestOptions(options.authorization) : this.requestOptions(),
         )
       );
       if (!response.data?.success || !response.data?.data) {

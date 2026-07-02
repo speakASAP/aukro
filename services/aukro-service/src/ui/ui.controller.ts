@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { AuthService, AuthUser, CatalogClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
+import { AuthResponse, AuthService, AuthUser, CatalogClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 
 interface UiAuthRequest {
@@ -42,17 +42,21 @@ export class UiController {
 
   @Post('ui/auth/login')
   async login(@Body() body: UiAuthRequest) {
-    return this.authService.login({ email: body.email, password: body.password });
+    const response = await this.authService.login({ email: body.email, password: body.password });
+    await this.provisionCatalogForAuthResponse(response);
+    return response;
   }
 
   @Post('ui/auth/register')
   async register(@Body() body: UiAuthRequest) {
-    return this.authService.register({
+    const response = await this.authService.register({
       email: body.email,
       password: body.password,
       firstName: body.firstName,
       lastName: body.lastName,
     });
+    await this.provisionCatalogForAuthResponse(response);
+    return response;
   }
 
   @Get('ui/me')
@@ -66,6 +70,15 @@ export class UiController {
       account: this.publicAccount(account),
       isAukroAdmin: this.isAukroAdmin(user),
     };
+  }
+
+  @Post('ui/catalog/provision')
+  @UseGuards(JwtAuthGuard)
+  async provisionCatalog(@Req() req: any) {
+    const user = req.user as AuthUser;
+    await this.ensureAukroAccount(user);
+    await this.catalogClient.provisionUserCatalog(this.humanAuthorizationOrThrow(req), 'aukro');
+    return { success: true, sourceApplication: 'aukro' };
   }
 
   @Get('ui/dashboard')
@@ -101,6 +114,7 @@ export class UiController {
   async catalogProducts(@Req() req: any, @Query() query: any) {
     const user = req.user as AuthUser;
     const account = await this.ensureAukroAccount(user);
+    const authorization = this.humanAuthorizationOrThrow(req);
     const limit = this.safeNumber(query.limit, 12, 1, 50);
     const page = this.safeNumber(query.page, 1, 1, 1000);
     const search = query.search ? String(query.search) : undefined;
@@ -135,6 +149,8 @@ export class UiController {
         isActive,
         page: scanPage,
         limit: scanLimit,
+        catalogScope: 'effective',
+        authorization,
       });
       const items = result.items || [];
       totalCatalog = result.total || totalCatalog;
@@ -157,6 +173,7 @@ export class UiController {
       totalPages: Math.max(Math.ceil(candidates.length / limit), 1),
       scanned,
       scanTruncated: scanned >= maxScanned && scanned < totalCatalog,
+      catalogScope: 'effective',
     };
   }
 
@@ -202,13 +219,14 @@ export class UiController {
 
   @Get('ui/catalog/products/:productId/content-preview')
   @UseGuards(JwtAuthGuard)
-  async catalogContentPreview(@Param('productId') productId: string) {
-    const preview = await this.catalogClient.getProductContentPreview(productId, 'aukro');
+  async catalogContentPreview(@Req() req: any, @Param('productId') productId: string) {
+    const authorization = this.humanAuthorizationOrThrow(req);
+    const preview = await this.catalogClient.getProductContentPreview(productId, 'aukro', { authorization, catalogScope: 'effective' });
     if (preview) {
       return this.publicContentPreview(preview);
     }
 
-    const product = await this.catalogClient.getProductById(productId);
+    const product = await this.catalogClient.getProductById(productId, { authorization, catalogScope: 'effective' });
     return {
       success: false,
       marketplace: 'aukro',
@@ -230,13 +248,8 @@ export class UiController {
   @UseGuards(JwtAuthGuard)
   async publish(@Req() req: any, @Body() body: UiPublishRequest) {
     const user = req.user as AuthUser;
-    const account = body.accountId
-      ? await this.prisma.aukroAccount.findUnique({ where: { id: body.accountId } })
-      : await this.ensureAukroAccount(user);
-
-    if (!account) {
-      throw new ForbiddenException('Aukro ucet neni dostupny pro prihlaseneho uzivatele.');
-    }
+    const account = await this.resolveAukroAccountForUser(user, body.accountId);
+    await this.assertEffectiveCatalogProductAccess(req, body.productId);
 
     return this.offersService.createFromCatalog({
       accountId: account.id,
@@ -249,13 +262,7 @@ export class UiController {
   @UseGuards(JwtAuthGuard)
   async bulkPublish(@Req() req: any, @Body() body: UiBulkPublishRequest) {
     const user = req.user as AuthUser;
-    const account = body.accountId
-      ? await this.prisma.aukroAccount.findUnique({ where: { id: body.accountId } })
-      : await this.ensureAukroAccount(user);
-
-    if (!account) {
-      throw new ForbiddenException('Aukro ucet neni dostupny pro prihlaseneho uzivatele.');
-    }
+    const account = await this.resolveAukroAccountForUser(user, body.accountId);
 
     const productIds = Array.from(new Set((body.productIds || []).map((id) => String(id).trim()).filter(Boolean))).slice(0, 50);
     if (!productIds.length) {
@@ -266,6 +273,7 @@ export class UiController {
     const results: any[] = [];
     for (const productId of productIds) {
       try {
+        await this.assertEffectiveCatalogProductAccess(req, productId);
         const draft = await this.offersService.createFromCatalog({
           accountId: account.id,
           productId,
@@ -357,8 +365,45 @@ export class UiController {
     };
   }
 
+  private async provisionCatalogForAuthResponse(response: AuthResponse) {
+    if (!response?.accessToken) {
+      throw new ForbiddenException('Catalog provisioning requires an Auth access token.');
+    }
+    await this.catalogClient.provisionUserCatalog(`Bearer ${response.accessToken}`, 'aukro');
+  }
+
+  private async resolveAukroAccountForUser(user: AuthUser, accountId?: string) {
+    if (!accountId) {
+      return this.ensureAukroAccount(user);
+    }
+
+    const email = this.userEmail(user);
+    const account = await this.prisma.aukroAccount.findFirst({
+      where: { id: accountId, email, isActive: true },
+    });
+    if (!account) {
+      throw new ForbiddenException('Aukro ucet neni dostupny pro prihlaseneho uzivatele.');
+    }
+    return account;
+  }
+
+  private async assertEffectiveCatalogProductAccess(req: any, productId: string) {
+    const normalizedProductId = this.textOrNull(productId);
+    if (!normalizedProductId) {
+      throw new BadRequestException('Vyberte produkt.');
+    }
+    try {
+      await this.catalogClient.getProductById(normalizedProductId, {
+        authorization: this.humanAuthorizationOrThrow(req),
+        catalogScope: 'effective',
+      });
+    } catch {
+      throw new ForbiddenException('Produkt neni dostupny v effective Catalog scope prihlaseneho uzivatele.');
+    }
+  }
+
   private async ensureAukroAccount(user: AuthUser) {
-    const email = user.email || `${user.id}@unknown`;
+    const email = this.userEmail(user);
     const existing = await this.prisma.aukroAccount.findFirst({ where: { email, isActive: true } });
     if (existing) return existing;
 
@@ -415,6 +460,7 @@ export class UiController {
     const title = this.textOrNull(product?.title ?? product?.name) || 'Produkt bez názvu';
     const imageUrl = this.extractImageUrl(product);
     const publishedOnAukro = Boolean(offer?.isActive && offer?.aukroOfferId);
+    const sourceSummary = this.catalogSourceSummary(product);
 
     return {
       id: product.id,
@@ -427,8 +473,36 @@ export class UiController {
       publishedOnAukro,
       draftStatus: draft.draftStatus || null,
       publishStatus: publishQueue.status || null,
+      catalogScope: 'effective',
+      sourceLabel: sourceSummary.sourceLabel,
+      accessLabel: sourceSummary.accessLabel,
+      resaleEnabled: sourceSummary.resaleEnabled,
       blockers: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
     };
+  }
+
+  private catalogSourceSummary(product: any) {
+    const source = this.asRecord(product?.source);
+    const catalogSource = this.asRecord(product?.catalogSource);
+    const settings = this.asRecord(product?.sourceSettings ?? product?.catalogSettings ?? source.settings ?? catalogSource.settings);
+    const access = this.asRecord(product?.access ?? product?.catalogAccess ?? settings.access);
+    const seller = this.asRecord(product?.seller ?? source.seller ?? catalogSource.seller);
+    const sourceType = (this.textOrNull(product?.sourceType ?? source.type ?? catalogSource.type ?? settings.sourceType) || '').toLowerCase();
+    const ownerType = (this.textOrNull(product?.ownerType ?? source.ownerType ?? catalogSource.ownerType ?? seller.type) || '').toLowerCase();
+    const ownerName = this.textOrNull(product?.ownerName ?? source.ownerName ?? catalogSource.ownerName ?? seller.name ?? seller.email);
+    const isAlfares = product?.isAlfaresProduct === true
+      || sourceType === 'alfares'
+      || ownerType === 'alfares'
+      || ownerName?.toLowerCase() === 'alfares';
+    const resaleEnabled = this.booleanOrNull(product?.resaleEnabled ?? settings.resaleEnabled ?? access.resaleEnabled ?? source.resaleEnabled ?? catalogSource.resaleEnabled);
+    const sourceLabel = isAlfares
+      ? 'Alfares source'
+      : (ownerName ? `Seller source: ${ownerName}` : 'Seller/community source');
+    const accessLabel = isAlfares
+      ? 'Catalog settings opt-in'
+      : (resaleEnabled === true ? 'Community-visible resale' : 'Seller-only');
+
+    return { sourceLabel, accessLabel, resaleEnabled };
   }
 
   private publicOrder(order: any) {
@@ -538,6 +612,27 @@ export class UiController {
     if (value === null || value === undefined) return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private userEmail(user: AuthUser): string {
+    return this.textOrNull(user.email) || `${user.id}@unknown`;
+  }
+
+  private humanAuthorizationOrThrow(req: any): string {
+    const authorization = this.textOrNull(req?.headers?.authorization);
+    if (!authorization || !/^Bearer\s+\S+/i.test(authorization)) {
+      throw new ForbiddenException('Catalog requires the authenticated user Bearer token.');
+    }
+    return authorization;
+  }
+
+  private booleanOrNull(value: any): boolean | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'boolean') return value;
+    const text = String(value).trim().toLowerCase();
+    if (['true', '1', 'yes', 'enabled'].includes(text)) return true;
+    if (['false', '0', 'no', 'disabled'].includes(text)) return false;
+    return null;
   }
 
   private isAukroAdmin(user: AuthUser): boolean {
@@ -949,6 +1044,8 @@ export class UiController {
       -webkit-box-orient: vertical;
     }
     .compact-product-meta { min-height: 18px; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .compact-product-tags { min-height: 20px; display: flex; gap: 4px; flex-wrap: wrap; overflow: hidden; }
+    .compact-product-tag { max-width: 100%; border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; background: var(--surface-2); color: var(--muted); font-size: 11px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .price { font-size: 22px; font-weight: 700; text-align: right; }
     .muted { color: var(--muted); }
     .tabs-bar {
@@ -1326,6 +1423,11 @@ export class UiController {
       }
       return data;
     };
+    const provisionCatalog = async () => {
+      const result = await api('/aukro/ui/catalog/provision', { method: 'POST', body: JSON.stringify({}) });
+      state.catalogProvisioned = true;
+      return result;
+    };
     const consumeAuthFragment = () => {
       const fragment = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
       const accessToken = fragment.get('access_token');
@@ -1382,6 +1484,7 @@ export class UiController {
       else showDashboardError(error);
     };
     const showClient = async () => {
+      await provisionCatalog();
       const dashboard = await api('/aukro/ui/dashboard');
       state.dashboard = dashboard;
       state.me = dashboard;
@@ -1457,8 +1560,8 @@ export class UiController {
       state.catalogItems = items;
       $('catalogMessage').className = result.scanTruncated ? 'message warn' : 'message';
       $('catalogMessage').textContent = items.length
-        ? 'K publikování: ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
-        : 'V katalogu nejsou žádné nepublikované produkty pro tento filtr.';
+        ? 'Effective Catalog scope: ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
+        : 'V effective Catalog scope nejsou žádné nepublikované produkty pro tento filtr.';
       $('products').innerHTML = items.map((item) => productCard(item)).join('');
       renderPager('catalogPager', result.page, result.totalPages, (nextPage) => {
         state.catalogPage = nextPage;
@@ -1505,6 +1608,7 @@ export class UiController {
         title: item.title || item.name || 'Produkt bez názvu',
         imageUrl: imageUrlFor(item),
         meta: item.draftStatus ? 'draft ' + item.draftStatus : 'nepublikováno',
+        tags: [item.catalogScope ? 'scope ' + item.catalogScope : '', item.sourceLabel || '', item.accessLabel || ''].filter(Boolean),
       }, true);
     };
     const compactProductCard = (item, publishable) => {
@@ -1512,7 +1616,8 @@ export class UiController {
       const initial = String(title).trim().charAt(0).toUpperCase() || 'A';
       const imageUrl = item.imageUrl || imageUrlFor(item);
       const media = '<span class="compact-product-media">' + (imageUrl ? '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(title) + '" loading="lazy" />' : '<span class="photo-placeholder">' + escapeHtml(initial) + '</span>') + '</span>';
-      const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>' + (item.meta ? '<span class="compact-product-meta">' + escapeHtml(item.meta) + '</span>' : '');
+      const tags = Array.isArray(item.tags) && item.tags.length ? '<span class="compact-product-tags">' + item.tags.map((tag) => '<span class="compact-product-tag">' + escapeHtml(tag) + '</span>').join('') + '</span>' : '';
+      const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>' + (item.meta ? '<span class="compact-product-meta">' + escapeHtml(item.meta) + '</span>' : '') + tags;
       if (publishable) {
         const checked = state.selectedProductIds.has(String(item.id)) ? ' checked' : '';
         return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + '"><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + ' aria-label="Vybrat produkt" />' + body + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
