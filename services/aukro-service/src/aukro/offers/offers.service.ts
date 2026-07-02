@@ -112,7 +112,9 @@ export class OffersService {
   }
 
   async create(data: any): Promise<any> {
-    const { policyEvidence, ...offerData } = data || {};
+    const { policyEvidence, catalogAuthorization, ...offerData } = data || {};
+    await this.assertCatalogQualityAllowsOfferMutation(offerData.productId, catalogAuthorization);
+
     const offer = await this.prisma.aukroOffer.create({
       data: offerData,
     });
@@ -121,7 +123,14 @@ export class OffersService {
   }
 
   async update(id: string, data: any): Promise<any> {
-    const { policyEvidence, ...offerData } = data || {};
+    const { policyEvidence, catalogAuthorization, ...offerData } = data || {};
+    const existingOffer = await this.prisma.aukroOffer.findUnique({ where: { id } });
+    if (!existingOffer) {
+      throw new NotFoundException(`Offer ${id} not found`);
+    }
+    const productId = offerData.productId === undefined ? existingOffer.productId : offerData.productId;
+    await this.assertCatalogQualityAllowsOfferMutation(productId, catalogAuthorization);
+
     const offer = await this.prisma.aukroOffer.update({
       where: { id },
       data: offerData,
@@ -673,6 +682,15 @@ export class OffersService {
           // Get primary image
           const media = await this.catalogClient.getProductMedia(product.id);
 
+          const catalogQuality = await this.loadCatalogQualitySnapshot(product.id);
+          try {
+            this.assertCatalogQualityAllowsDraft(catalogQuality);
+          } catch (error: any) {
+            results.policyBlocked++;
+            results.errors.push(`Product ${product.id}: ${this.catalogQualityErrorMessage(error)}`);
+            continue;
+          }
+
           let offer: any;
           if (existingOffer) {
             // Update existing offer
@@ -713,6 +731,7 @@ export class OffersService {
                 pricing: { basePrice: price },
                 media,
                 duplicateFound: false,
+                catalogQuality,
               }),
               data?.policyEvidence,
             ),
@@ -737,6 +756,23 @@ export class OffersService {
       this.logger.error(`Failed to sync from catalog: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  private async assertCatalogQualityAllowsOfferMutation(productId?: string | null, authorization?: string | null): Promise<CatalogDraftQualitySnapshot | undefined> {
+    const normalizedProductId = this.textOrUndefined(productId);
+    if (!normalizedProductId) return undefined;
+
+    const catalogQuality = await this.loadCatalogQualitySnapshot(normalizedProductId, authorization);
+    this.assertCatalogQualityAllowsDraft(catalogQuality);
+    return catalogQuality;
+  }
+
+  private catalogQualityErrorMessage(error: any): string {
+    const response = typeof error?.getResponse === function ? error.getResponse() : undefined;
+    if (response && typeof response === object && message in response) {
+      return String((response as any).message);
+    }
+    return error?.message || Catalog product quality blockers prevent Aukro mutation.;
   }
 
   private async withDraftPolicySnapshot(offer: any, policyEvidence?: OfferPolicyEvidence): Promise<any> {
