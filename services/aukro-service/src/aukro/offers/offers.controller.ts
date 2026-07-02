@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Headers } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { JwtAuthGuard } from '@aukro/shared';
 import { CatalogSellActionRequest } from './catalog-draft.types';
@@ -33,8 +33,11 @@ export class OffersController {
   }
 
   @Post('from-catalog')
-  async createFromCatalog(@Body() data: CatalogSellActionRequest): Promise<any> {
-    return this.offersService.createFromCatalog(data);
+  async createFromCatalog(@Body() data: CatalogSellActionRequest, @Headers('authorization') authorization?: string): Promise<any> {
+    return this.offersService.createFromCatalog({
+      ...data,
+      catalogAuthorization: data?.catalogAuthorization ?? authorization ?? null,
+    });
   }
 
   @Post(':id/ai-proposals')
