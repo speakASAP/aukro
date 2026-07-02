@@ -119,6 +119,7 @@ export class UiController {
     const page = this.safeNumber(query.page, 1, 1, 1000);
     const search = query.search ? String(query.search) : undefined;
     const categoryId = query.categoryId ? String(query.categoryId) : undefined;
+    const catalogSources = this.catalogSourcesFromQuery(query.catalogSources);
     const isActive = query.isActive === undefined ? true : String(query.isActive) === 'true';
     const localOffers = await this.prisma.aukroOffer.findMany({
       where: { accountId: account.id },
@@ -150,6 +151,7 @@ export class UiController {
         page: scanPage,
         limit: scanLimit,
         catalogScope: 'effective',
+        catalogSources,
         authorization,
       });
       const items = result.items || [];
@@ -174,6 +176,7 @@ export class UiController {
       scanned,
       scanTruncated: scanned >= maxScanned && scanned < totalCatalog,
       catalogScope: 'effective',
+      catalogSources: catalogSources || ['own', 'alfares', 'community'],
     };
   }
 
@@ -635,6 +638,17 @@ export class UiController {
     return null;
   }
 
+  private catalogSourcesFromQuery(value: any): string[] | undefined {
+    const rawItems = Array.isArray(value) ? value : String(value || '').split(',');
+    const allowed = new Set(['own', 'alfares', 'community']);
+    const sources = rawItems
+      .flatMap((item) => String(item || '').split(','))
+      .map((item) => item.trim().toLowerCase())
+      .filter((item) => allowed.has(item));
+
+    return sources.length ? Array.from(new Set(sources)) : undefined;
+  }
+
   private isAukroAdmin(user: AuthUser): boolean {
     const email = (user.email || '').toLowerCase();
     const configuredEmails = (process.env.AUKRO_ADMIN_EMAILS || 'test@example.com')
@@ -663,6 +677,10 @@ export class UiController {
     const dashboardReturnUrl = process.env.AUKRO_DASHBOARD_URL || 'https://aukro.alfares.cz/dashboard';
     const hostedLoginUrl = `${authBaseUrl}/login?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
     const hostedRegisterUrl = `${authBaseUrl}/register?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
+    const catalogDashboardBaseUrl = (process.env.CATALOG_DASHBOARD_URL || 'https://catalog.alfares.cz').replace(/\/$/, '');
+    const catalogProductsUrl = `${catalogDashboardBaseUrl}/dashboard/products`;
+    const catalogNewProductUrl = `${catalogDashboardBaseUrl}/dashboard/products/new`;
+    const catalogSettingsUrl = `${catalogDashboardBaseUrl}/dashboard/settings`;
 
     return `<!doctype html>
 <html lang="cs">
@@ -1090,6 +1108,28 @@ export class UiController {
       border-radius: 0;
       padding: 0 12px;
     }
+    .catalog-action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 0; }
+    .catalog-action-grid .quick-tile { min-height: 64px; }
+    .source-filter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 40px;
+    }
+    .source-check {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .source-check input { width: 16px; height: 16px; accent-color: var(--aukro-orange); }
     .message { min-height: 24px; color: var(--muted); }
     .message.ok { color: var(--ok); }
     .message.warn { color: var(--warn); }
@@ -1247,22 +1287,22 @@ export class UiController {
       <section class="content">
         <div class="hero-banner">
           <div class="hero-copy">
-            <h1>Automatizace práce se stránkou Aukro</h1>
-            <p>Připojíme katalog produktů, hlídáme změny, připravujeme inzeráty, publikujeme nabídky a vracíme objednávky zpět do Alfares.</p>
+            <h1>Prodávejte na Aukru přes Alfares katalog, vlastní sortiment i sdílené produkty</h1>
+            <p>Prodávejte zlevněné produkty Alfares a firemních dodavatelů, publikujte vlastní produkty a resellujte dostupné položky od dalších uživatelů nebo ze sdíleného katalogu. Alfares automatizuje listingy, naplnění marketplace účtu, platby a objednávky tam, kde to Aukro napojení dovoluje; zákazník spravuje produkty, připojuje přístup, prodává a expeduje.</p>
             <div class="toolbar"><a class="button primary" href="${hostedLoginUrl}">Vstoupit do dashboardu</a><a class="button" href="${hostedRegisterUrl}">Registrovat účet</a></div>
           </div>
           <div class="hero-art" aria-hidden="true">
             <div class="automation-card">
               <div class="automation-flow">
-                <div class="flow-row"><span class="flow-icon">1</span><b>Katalog Alfares</b><span class="flow-state">online</span></div>
-                <div class="flow-row"><span class="flow-icon">2</span><b>Aukro drafty</b><span class="flow-state">auto</span></div>
-                <div class="flow-row"><span class="flow-icon">3</span><b>Publikace a monitoring</b><span class="flow-state">hlídáno</span></div>
+                <div class="flow-row"><span class="flow-icon">1</span><b>Dodavatelé, vlastní zboží, sdílený katalog</b><span class="flow-state">výběr</span></div>
+                <div class="flow-row"><span class="flow-icon">2</span><b>Aukro listingy a účet</b><span class="flow-state">auto</span></div>
+                <div class="flow-row"><span class="flow-icon">3</span><b>Objednávky, prodej a expedice</b><span class="flow-state">hlídáno</span></div>
               </div>
             </div>
           </div>
         </div>
 
-        <h2 class="section-title">Populární automatizace</h2>
+        <h2 class="section-title">Co můžete prodávat přes Aukro Alfares</h2>
         <div class="quick-grid" id="workflow">
           <a class="quick-tile accent" href="${hostedLoginUrl}"><span class="quick-icon">▧</span> Katalog</a>
           <a class="quick-tile" href="${hostedLoginUrl}"><span class="quick-icon">◴</span> Končící aukce</a>
@@ -1274,12 +1314,12 @@ export class UiController {
         </div>
 
         <h2 class="section-title">Nabídky automatizace pro vás</h2>
-        <p class="subline">Stejná logika jako marketplace list: přehledné karty procesů, rychlé stavy a jasná akce.</p>
+        <p class="subline">Alfares propojuje zdroj produktu, marketplace listing a provozní kroky. Zákazník zůstává vlastníkem sortimentu, přístupu k Aukru, prodeje a odeslání.</p>
         <div class="offer-grid">
-          <article class="product-card"><div class="product-media"><span class="thumb">A</span><span class="heart">♡ 32</span></div><div class="product-body"><span class="condition">Katalog</span><h3 class="product-title">Import produktů z Alfares katalogu</h3><p class="muted">Automatické načtení názvů, cen, skladů a médií.</p></div></article>
-          <article class="product-card"><div class="product-media"><span class="thumb">↻</span><span class="heart">♡ 24</span></div><div class="product-body"><span class="condition">Aktualizace</span><h3 class="product-title">Hlídání cen, skladu a změn v inzerátu</h3><p class="muted">Služba drží nabídky v souladu s katalogem.</p></div></article>
-          <article class="product-card"><div class="product-media"><span class="thumb">✓</span><span class="heart">♡ 22</span></div><div class="product-body"><span class="condition">Policy gate</span><h3 class="product-title">Kontrola před publikací na Aukro</h3><p class="muted">Blokery jsou viditelné dřív, než se nabídka odešle.</p></div></article>
-          <article class="product-card"><div class="product-media"><span class="thumb">₭</span><span class="heart">♡ 19</span></div><div class="product-body"><span class="condition">Objednávky</span><h3 class="product-title">Přenos objednávek do Alfares</h3><p class="muted">Objednávky a audit zůstávají v jednom provozním toku.</p></div></article>
+          <article class="product-card"><div class="product-media"><span class="thumb">A</span><span class="heart">♡ 32</span></div><div class="product-body"><span class="condition">Dodavatelé</span><h3 class="product-title">Alfares a firemní zboží se slevou</h3><p class="muted">Publikujte zvýhodněné dodavatelské produkty jako nabídky na Aukru.</p></div></article>
+          <article class="product-card"><div class="product-media"><span class="thumb">↻</span><span class="heart">♡ 24</span></div><div class="product-body"><span class="condition">Vlastní zboží</span><h3 class="product-title">Produkty zákazníka v marketplace toku</h3><p class="muted">Přidejte vlastní sortiment a nechte Alfares připravit listingy a kontroly.</p></div></article>
+          <article class="product-card"><div class="product-media"><span class="thumb">✓</span><span class="heart">♡ 22</span></div><div class="product-body"><span class="condition">Resell</span><h3 class="product-title">Sdílený katalog a produkty uživatelů</h3><p class="muted">Vyberte dostupné položky od dalších uživatelů a prodávejte je tam, kde máte oprávnění.</p></div></article>
+          <article class="product-card"><div class="product-media"><span class="thumb">₭</span><span class="heart">♡ 19</span></div><div class="product-body"><span class="condition">Automatizace</span><h3 class="product-title">Listingy, platby a objednávky</h3><p class="muted">Alfares plní marketplace účet a provozní tok; zákazník prodává, řeší zákazníka a expeduje.</p></div></article>
         </div>
       </section>
     </section>
@@ -1291,6 +1331,9 @@ export class UiController {
           <ul class="side-list">
             <li><span>Moje nabídky</span></li>
             <li><span>Produkty k publikaci</span></li>
+            <li><a href="${catalogProductsUrl}" target="_blank" rel="noopener">Spravovat Catalog produkty</a></li>
+            <li><a href="${catalogNewProductUrl}" target="_blank" rel="noopener">Přidat Catalog produkt</a></li>
+            <li><a href="${catalogSettingsUrl}" target="_blank" rel="noopener">Zdroje a resale</a></li>
             <li><span>Objednávky z Aukro</span></li>
             <li><span>Admin služby</span></li>
           </ul>
@@ -1343,8 +1386,25 @@ export class UiController {
 
             <div class="workspace">
               <div class="panel">
+                <h2 class="section-title">Catalog v osobním účtu</h2>
+                <div class="quick-grid catalog-action-grid">
+                  <a class="quick-tile accent" href="${catalogProductsUrl}" target="_blank" rel="noopener"><span class="quick-icon">▧</span> Spravovat Catalog produkty</a>
+                  <a class="quick-tile" href="${catalogNewProductUrl}" target="_blank" rel="noopener"><span class="quick-icon">⊕</span> Přidat Catalog produkt</a>
+                  <a class="quick-tile blue" href="${catalogSettingsUrl}" target="_blank" rel="noopener"><span class="quick-icon">⚙</span> Zdroje a resale</a>
+                </div>
+                <p class="muted">Vlastní produkty, upload a veřejné resale nastavení spravuje Catalog Dashboard pod přihlášeným uživatelem.</p>
+              </div>
+              <div class="panel">
                 <h2 class="section-title">Produkty k publikování na Aukro</h2>
-                <div class="toolbar"><input id="search" class="field" type="search" placeholder="Vyhledat produkt v katalogu" /><button id="loadProducts" type="button">Načíst produkty</button></div>
+                <div class="toolbar">
+                  <input id="search" class="field" type="search" placeholder="Vyhledat produkt v katalogu" />
+                  <div class="source-filter" aria-label="Zdroje Catalogu">
+                    <label class="source-check"><input type="checkbox" value="own" data-catalog-source checked /> Moje</label>
+                    <label class="source-check"><input type="checkbox" value="alfares" data-catalog-source checked /> Alfares</label>
+                    <label class="source-check"><input type="checkbox" value="community" data-catalog-source checked /> Komunitní resale</label>
+                  </div>
+                  <button id="loadProducts" type="button">Načíst produkty</button>
+                </div>
                 <div class="bulk-bar">
                   <div><strong id="selectedCount">0 vybráno</strong><div class="muted">Zobrazujeme pouze produkty, které nejsou aktivně publikované v tomto Aukro účtu.</div></div>
                   <div class="toolbar"><button id="selectPageProducts" type="button">Vybrat stránku</button><button id="clearSelectedProducts" type="button">Zrušit výběr</button><button class="primary" id="bulkPublishProducts" type="button">Publikovat vybrané</button></div>
@@ -1403,6 +1463,7 @@ export class UiController {
       catalogPage: 1,
       catalogLimit: 12,
       catalogItems: [],
+      catalogSources: ['own', 'alfares', 'community'],
       selectedProductIds: new Set(),
       offerPage: 1,
       offerLimit: 12,
@@ -1551,17 +1612,36 @@ export class UiController {
         if (card) card.classList.toggle('is-selected', input.checked);
       });
     };
+    const selectedCatalogSources = () => Array.from(document.querySelectorAll('[data-catalog-source]:checked'))
+      .map((input) => input.value)
+      .filter(Boolean);
+    const catalogSourceLabel = (sources) => {
+      const labels = { own: 'moje', alfares: 'Alfares', community: 'komunitní resale' };
+      return (sources || []).map((source) => labels[source] || source).join(', ');
+    };
     const loadProducts = async () => {
       $('catalogMessage').className = 'message';
       $('catalogMessage').textContent = 'Načítám produkty z catalog-microservice...';
       const search = $('search').value.trim();
-      const result = await api('/aukro/ui/catalog/products?limit=' + state.catalogLimit + '&page=' + state.catalogPage + (search ? '&search=' + encodeURIComponent(search) : ''));
+      const sources = selectedCatalogSources();
+      if (!sources.length) {
+        state.catalogItems = [];
+        $('products').innerHTML = '';
+        $('catalogPager').innerHTML = '';
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = 'Vyberte alespoň jeden Catalog zdroj.';
+        updateSelectedCount();
+        return;
+      }
+      state.catalogSources = sources;
+      const sourceQuery = '&catalogSources=' + encodeURIComponent(sources.join(','));
+      const result = await api('/aukro/ui/catalog/products?limit=' + state.catalogLimit + '&page=' + state.catalogPage + sourceQuery + (search ? '&search=' + encodeURIComponent(search) : ''));
       const items = result.items || [];
       state.catalogItems = items;
       $('catalogMessage').className = result.scanTruncated ? 'message warn' : 'message';
       $('catalogMessage').textContent = items.length
-        ? 'Effective Catalog scope: ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
-        : 'V effective Catalog scope nejsou žádné nepublikované produkty pro tento filtr.';
+        ? 'Effective Catalog scope (' + catalogSourceLabel(result.catalogSources || sources) + '): ' + result.total + ' produktů. Stránka ' + result.page + ' z ' + result.totalPages + '.'
+        : 'V effective Catalog scope nejsou žádné nepublikované produkty pro vybrané zdroje.';
       $('products').innerHTML = items.map((item) => productCard(item)).join('');
       renderPager('catalogPager', result.page, result.totalPages, (nextPage) => {
         state.catalogPage = nextPage;
@@ -1754,6 +1834,15 @@ export class UiController {
         loadProducts().catch((error) => {
           $('catalogMessage').className = 'message warn';
           $('catalogMessage').textContent = error.message;
+        });
+      });
+      document.querySelectorAll('[data-catalog-source]').forEach((input) => {
+        input.addEventListener('change', () => {
+          state.catalogPage = 1;
+          loadProducts().catch((error) => {
+            $('catalogMessage').className = 'message warn';
+            $('catalogMessage').textContent = error.message;
+          });
         });
       });
       $('loadOfferProducts').addEventListener('click', () => {

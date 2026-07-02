@@ -83,6 +83,17 @@ export class CatalogClientService {
     return header ? { headers: { Authorization: header } } : {};
   }
 
+  private catalogSourcesQuery(value?: string[] | string | null): string | null {
+    const rawItems = Array.isArray(value) ? value : String(value || '').split(',');
+    const allowed = new Set(['own', 'alfares', 'community']);
+    const sources = rawItems
+      .flatMap((item) => String(item || '').split(','))
+      .map((item) => item.trim().toLowerCase())
+      .filter((item) => allowed.has(item));
+
+    return Array.from(new Set(sources)).join(',') || null;
+  }
+
   async provisionUserCatalog(authorization: string | null | undefined, sourceApplication: string): Promise<any> {
     const options = this.userRequestOptions(authorization);
     if (!options.headers?.Authorization) {
@@ -155,6 +166,7 @@ export class CatalogClientService {
     page?: number;
     limit?: number;
     catalogScope?: string;
+    catalogSources?: string[] | string;
     authorization?: string | null;
   }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
     try {
@@ -165,6 +177,8 @@ export class CatalogClientService {
       if (query.page) params.append('page', String(query.page));
       if (query.limit) params.append('limit', String(query.limit));
       if (query.catalogScope) params.append('catalogScope', query.catalogScope);
+      const catalogSources = this.catalogSourcesQuery(query.catalogSources);
+      if (catalogSources) params.append('catalogSources', catalogSources);
       const requestOptions = query.authorization ? this.userRequestOptions(query.authorization) : undefined;
 
       const response = await firstValueFrom(
