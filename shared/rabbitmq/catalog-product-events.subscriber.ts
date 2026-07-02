@@ -114,8 +114,12 @@ export class CatalogProductEventsSubscriber implements OnModuleInit, OnModuleDes
       ?? event?.productId
       ?? event?.payload?.catalogProductId
       ?? event?.payload?.productId
+      ?? event?.aggregate?.id
+      ?? event?.payload?.aggregate?.id
       ?? event?.data?.catalogProductId
       ?? event?.data?.productId
+      ?? event?.data?.product?.catalogProductId
+      ?? event?.data?.product?.id
       ?? event?.after?.id
       ?? event?.payload?.after?.id
       ?? event?.data?.after?.id,
@@ -245,6 +249,10 @@ export class CatalogProductEventsSubscriber implements OnModuleInit, OnModuleDes
       ?? event?.payload?.after?.sellable
       ?? event?.data?.afterSellable
       ?? event?.data?.sellable
+      ?? event?.data?.change?.afterSellable
+      ?? event?.data?.product?.sellable
+      ?? event?.data?.product?.isSellable
+      ?? (typeof event?.data?.product?.isActive === "boolean" ? event.data.product.isActive : undefined)
       ?? event?.data?.after?.sellable
       ?? event?.after?.sellable;
   }
@@ -261,6 +269,8 @@ export class CatalogProductEventsSubscriber implements OnModuleInit, OnModuleDes
       ?? event?.data?.afterActive
       ?? event?.data?.isActive
       ?? event?.data?.active
+      ?? event?.data?.product?.isActive
+      ?? event?.data?.product?.active
       ?? event?.data?.after?.isActive
       ?? event?.data?.after?.active
       ?? event?.after?.isActive
@@ -276,6 +286,10 @@ export class CatalogProductEventsSubscriber implements OnModuleInit, OnModuleDes
       ?? event?.payload?.after?.status
       ?? event?.data?.afterStatus
       ?? event?.data?.status
+      ?? event?.data?.change?.afterStatus
+      ?? event?.data?.change?.afterLifecycle
+      ?? event?.data?.product?.lifecycle
+      ?? event?.data?.product?.status
       ?? event?.data?.after?.status
       ?? event?.after?.status
       ?? '',
