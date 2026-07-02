@@ -4,7 +4,7 @@ status: reviewed
 target: ../11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md
 owner: Engineering
 created: 2026-07-02
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 completeness_level: complete
 upstream:
   - ../11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md
@@ -29,7 +29,8 @@ This validates the Aukro consumer slice for Catalog Goal 25 product quality revi
 | Unavailable quality evidence fails closed | Pass | Focused offer service spec rejects with `CATALOG_QUALITY_REVIEW_UNAVAILABLE` and create count remains zero. |
 | Product picker surfaces and disables blocked candidates | Pass | `services/aukro-service/src/ui/ui.controller.ts` enriches paged candidates with Catalog quality blockers and disables selection when `catalogQualityCanActivate=false`. |
 | Publish-adjacent policy checks include Catalog blocker evidence | Pass | Focused offer service spec blocks enqueue with `CATALOG_VALIDATION_FAILED` and records Catalog blocker `missing_title` under policy evidence. |
-| Forbidden ownership boundaries preserved | Pass | No Prisma schema, migrations, Kubernetes/deployment manifests, runtime secrets, Warehouse, Orders, Auth, or live Aukro executor mutation paths changed. |
+| Forbidden ownership boundaries preserved | Pass | No Prisma schema, migrations, Kubernetes manifests, runtime secrets, Warehouse, Orders, Auth, or live Aukro executor mutation paths changed. |
+| Direct API forwards Catalog auth for readiness | Pass | `POST /offers/from-catalog` now forwards the request `Authorization` header into `catalogAuthorization` when no explicit body override is supplied. |
 
 ## Command evidence
 
@@ -43,6 +44,10 @@ This validates the Aukro consumer slice for Catalog Goal 25 product quality revi
 | `python3 scripts/pre_coding_gate.py --root .` | Pass, report `reports/validation/ips-pre-coding-gate.json` |
 | `python3 scripts/deployment_readiness_gate.py --root . --target TASK-017` | Pass, report `reports/validation/ips-deployment-readiness-gate.json` |
 | `git diff --check` | Pass |
+| `./scripts/deploy.sh` | Pass, deployed `localhost:5000/aukro-service:4cdd671` |
+| `kubectl rollout status deployment/aukro-service -n statex-apps --timeout=60s` | Pass, 1 updated / 1 available / 1 ready replica |
+| `curl -i -sS -m 15 https://aukro.alfares.cz/health` | Pass, HTTP 200 `status=ok` |
+| `curl -i -sS -m 15 https://catalog.alfares.cz/health` | Pass, HTTP 200 `status=healthy` |
 
 ## Issues found
 
@@ -54,7 +59,7 @@ Strict audit also reported a pre-existing false-positive path reference in `12_v
 
 ## Recommendation
 
-Accept TASK-017 for orchestrator review. Deployment was not run because this worker thread did not have deploy approval.
+Accept TASK-017 for orchestrator review. After owner approval, commits `b462ffd` and `4cdd671` were pushed to `origin/main`, obsolete branch `codex/orders-lifecycle-cabinet-aukro` was removed locally/remotely, and Aukro production rolled out successfully to image `localhost:5000/aukro-service:4cdd671`.
 
 ## Traceability confirmation
 
