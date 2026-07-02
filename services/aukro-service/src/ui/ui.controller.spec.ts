@@ -30,6 +30,12 @@ async function run() {
     },
   });
 
+  const dashboardShell = controller.renderShell({ page: 'dashboard' });
+  assert.equal(dashboardShell.includes('dashboardPollMs: 30000'), true);
+  assert.equal(dashboardShell.includes('document.hidden || !state.token'), true);
+  assert.equal(dashboardShell.includes("document.addEventListener('visibilitychange'"), true);
+  assert.equal(dashboardShell.includes("window.addEventListener('pagehide', stopDashboardPolling)"), true);
+
   const rawItem = {
     title: 'Sold catalog item',
     quantity: 2,
