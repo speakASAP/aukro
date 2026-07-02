@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-07-01T08:50:23Z",
+  "created_at": "2026-07-02T17:30:33Z",
   "gate": "deployment_readiness",
   "next_step": "ready_for_deployment_review",
   "pre_coding_gate": {
@@ -11,7 +11,7 @@
     "status": "pass",
     "stderr": ""
   },
-  "root": "/home/ssf/Documents/Github/aukro-service",
+  "root": "/home/ssf/Documents/Github/aukro",
   "schema_version": "1.0.0",
   "status": "pass",
   "strict_doc_audit": {
@@ -19,7 +19,7 @@
     "score": 100,
     "status": "PASS"
   },
-  "target": "TASK-015",
+  "target": "VAL-AU2-orders-lifecycle-cabinet-admin-stats",
   "unresolved_markers": [
     {
       "line": 93,
@@ -77,17 +77,32 @@
       "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
-      "line": 205,
-      "marker": "[MISSING: Auth-compatible Warehouse service credential for Aukro runtime Warehouse lookup path]",
-      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
+      "line": 48,
+      "marker": "[MISSING: ORDER_SYNTHETIC_SMOKE_TOKEN]",
+      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     },
     {
-      "line": 206,
+      "line": 76,
+      "marker": "[MISSING: ORDER_SYNTHETIC_SMOKE_TOKEN]",
+      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+    },
+    {
+      "line": 77,
+      "marker": "[MISSING: Orders lifecycle read contract authorized for aukro-service role; client method is implemented fail-closed pending Orders endpoint/role approval.]",
+      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+    },
+    {
+      "line": 78,
+      "marker": "[UNKNOWN: real Aukro webhook payload shape.]",
+      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+    },
+    {
+      "line": 215,
       "marker": "[MISSING: repository-local task document for Orders Goal 7.2B]",
       "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
     {
-      "line": 207,
+      "line": 216,
       "marker": "[MISSING: repository-local execution plan for Orders Goal 7.2B]",
       "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
@@ -120,14 +135,119 @@
       "line": 60,
       "marker": "[UNKNOWN: ...]",
       "path": "AGENT_OPERATIONS.md"
+    },
+    {
+      "line": 42,
+      "marker": "[MISSING: current Aukro UI ownership and supported slots]",
+      "path": "docs/business-process-control-plane/HOLIDAY_DISCOUNT_ADOPTION.md"
+    },
+    {
+      "line": 13,
+      "marker": "[UNKNOWN: whether every active provider-backed order path always forwards to central Orders.]",
+      "path": "docs/orchestrator/2026-07-02-central-orders-status-read-model-plan.md"
+    },
+    {
+      "line": 74,
+      "marker": "[MISSING: Orders lifecycle read contract authorized for aukro-service role; client method is implemented fail-closed pending Orders endpoint/role approval.]",
+      "path": "docs/orchestrator/2026-07-02-central-orders-status-read-model-plan.md"
+    },
+    {
+      "line": 75,
+      "marker": "[UNKNOWN: real Aukro webhook payload shape.]",
+      "path": "docs/orchestrator/2026-07-02-central-orders-status-read-model-plan.md"
+    },
+    {
+      "line": 110,
+      "marker": "[UNKNOWN: exact runtime Auth token for authorized end-to-end smoke in every dashboard]",
+      "path": "docs/orchestrator/2026-07-02-dashboard-catalog-source-options-plan.md"
+    },
+    {
+      "line": 111,
+      "marker": "[UNKNOWN: final localized dashboard copy for every language]",
+      "path": "docs/orchestrator/2026-07-02-dashboard-catalog-source-options-plan.md"
+    },
+    {
+      "line": 112,
+      "marker": "[UNKNOWN: whether shop-assistant, chytrakoupe, and rent-a-box have personal-account product-source obligations in this first wave]",
+      "path": "docs/orchestrator/2026-07-02-dashboard-catalog-source-options-plan.md"
+    },
+    {
+      "line": 113,
+      "marker": "[MISSING: sub-agent audit results for each channel dashboard]",
+      "path": "docs/orchestrator/2026-07-02-dashboard-catalog-source-options-plan.md"
+    },
+    {
+      "line": 62,
+      "marker": "[MISSING: ...]",
+      "path": "docs/orchestrator/2026-07-02-local-resale-toggle-and-flipflop-seller-plan.md"
+    },
+    {
+      "line": 68,
+      "marker": "[MISSING: ...]",
+      "path": "docs/orchestrator/2026-07-02-local-resale-toggle-and-flipflop-seller-plan.md"
+    },
+    {
+      "line": 68,
+      "marker": "[UNKNOWN: ...]",
+      "path": "docs/orchestrator/2026-07-02-local-resale-toggle-and-flipflop-seller-plan.md"
+    },
+    {
+      "line": 143,
+      "marker": "[MISSING: approved files]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 172,
+      "marker": "[MISSING: approved durable ownership for automated affinity scorer]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 173,
+      "marker": "[MISSING: Catalog bundle ownership decision: standalone aggregate vs product-like SKU]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 174,
+      "marker": "[MISSING: Warehouse bundle reservation contract]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 175,
+      "marker": "[MISSING: Orders bundle create-order contract]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 176,
+      "marker": "[MISSING: Payments/free-shipping/discount total contract]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 177,
+      "marker": "[MISSING: channel-specific external marketplace bundle publication policies]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 178,
+      "marker": "[UNKNOWN: live DB migration state for each service unless separately verified]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 182,
+      "marker": "[MISSING: ...]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 182,
+      "marker": "[UNKNOWN: ...]",
+      "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
     }
   ],
   "validation_reports": {
     "matching_reports": [
-      "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
-      "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md"
+      "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     ],
     "reports": [
+      "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md",
       "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md",
       "12_validation/VAL-TASK-001-ips-governance-baseline.md",
       "12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
@@ -147,6 +267,6 @@
       "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md"
     ],
     "status": "pass",
-    "target": "TASK-015"
+    "target": "VAL-AU2-orders-lifecycle-cabinet-admin-stats"
   }
 }

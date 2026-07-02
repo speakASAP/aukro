@@ -314,6 +314,9 @@ nodes:
 - id: VAL-TASK-016-orders-create-synthetic-smoke
   type: ValidationReport
   path: 12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md
+- id: VAL-AU2-orders-lifecycle-cabinet-admin-stats
+  type: ValidationReport
+  path: 12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -801,3 +804,6 @@ edges:
 - from: VAL-TASK-016-orders-create-synthetic-smoke
   type: validates
   to: TASK-016
+- from: VAL-AU2-orders-lifecycle-cabinet-admin-stats
+  type: validates
+  to: FEAT-003

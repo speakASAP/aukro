@@ -73,3 +73,24 @@ Remaining blockers:
 
 - [MISSING: Orders lifecycle read contract authorized for aukro-service role; client method is implemented fail-closed pending Orders endpoint/role approval.]
 - [UNKNOWN: real Aukro webhook payload shape.]
+
+## AU2 Worker Handoff - 2026-07-02
+
+Role: Aukro customer/admin lifecycle read-model worker.
+
+Vision -> Goal Impact -> System -> Feature -> Task -> Execution Plan -> Coding Prompt -> Code -> Validation:
+
+- Vision: aukro-service remains a narrow Aukro sales-channel integration and does not become order lifecycle truth.
+- Goal Impact: customer cabinet rows and admin aggregates expose central Orders lifecycle visibility without leaking customer/order records.
+- System: Orders remains lifecycle authority; Aukro reads central status by stored `aukro_orders.orderId` and keeps local forwarding health visible.
+- Feature: customer dashboard order list keeps central status hydration; admin dashboard receives aggregate order/delivery statistics only.
+- Task: AU2 customer cabinet validation plus admin order/delivery aggregate stats.
+- Execution Plan: reuse the fail-closed Orders read client, aggregate the latest local Aukro orders by read/order/lifecycle/payment/fulfillment/delivery status, and render only counts in the admin panel.
+- Coding Prompt: edit only Aukro UI/controller tests and this plan; do not deploy, run migrations, read secrets, print tokens, or query production rows.
+- Code: `UiController.adminServices`, `UiController.adminOrderStats`, dashboard admin rendering, and `ui.controller.spec.ts`.
+- Validation: run focused UI/shared Orders client tests, build, `git diff --check`, and IPS gates where available.
+
+Privacy notes:
+
+- Admin stats return aggregate counts only.
+- Customer emails, order identifiers, raw webhook payloads, and item details are not returned from the admin stats response.

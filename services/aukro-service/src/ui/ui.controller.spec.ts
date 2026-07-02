@@ -3,14 +3,18 @@ process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://log
 const { strict: assert } = require('assert');
 const { UiController } = require('./ui.controller');
 
-function createController(centralOrdersById: Record<string, any>) {
+function createController(centralOrdersById: Record<string, any>, orders: any[] = []) {
   const authService = {};
   const catalogClient = {};
   const offersService = {};
   const orderClient = {
     getOrderReadModel: async (orderId: string) => centralOrdersById[orderId] || null,
   };
-  const prisma = {};
+  const prisma = {
+    aukroOrder: {
+      findMany: async () => orders,
+    },
+  };
   return new UiController(authService as any, catalogClient as any, offersService as any, orderClient as any, prisma as any) as any;
 }
 
@@ -37,6 +41,7 @@ async function run() {
     orderId: 'central-order-1',
     status: 'pending',
     forwarded: true,
+    customerEmail: 'buyer@example.test',
     total: 299,
     currency: 'CZK',
     createdAt: new Date('2026-07-02T10:00:00.000Z'),
@@ -101,6 +106,40 @@ async function run() {
   assert.equal(summary.unforwardedOrders, 1);
   assert.equal(summary.ordersWithCentralStatus, 1);
   assert.equal(summary.staleOrders, 2);
+
+  const adminController = createController({
+    'central-order-1': {
+      id: 'central-order-1',
+      status: 'paid',
+      lifecycleStage: 'paid_not_delivered',
+      paymentStatus: 'paid',
+      fulfillmentStatus: 'reserved',
+      deliveryStatus: 'not_started',
+    },
+  }, [
+    localForwardedOrder,
+    localMissingIdOrder,
+    localUnavailableOrder,
+  ]);
+  const adminResponse = await adminController.adminServices({
+    user: {
+      email: 'ops@example.test',
+      roles: ['aukro:admin'],
+      permissions: [],
+    },
+  });
+  assert.equal(adminResponse.orderStats.totalOrders, 3);
+  assert.equal(adminResponse.orderStats.forwardedOrders, 2);
+  assert.equal(adminResponse.orderStats.unforwardedOrders, 1);
+  assert.equal(adminResponse.orderStats.ordersWithCentralStatus, 1);
+  assert.equal(adminResponse.orderStats.staleOrders, 2);
+  assert.equal(adminResponse.orderStats.byOrdersReadStatus.available, 1);
+  assert.equal(adminResponse.orderStats.byOrdersReadStatus.missing_order_id, 1);
+  assert.equal(adminResponse.orderStats.byOrdersReadStatus.unavailable, 1);
+  assert.equal(adminResponse.orderStats.byLifecycleStage.paid_not_delivered, 1);
+  assert.equal(adminResponse.orderStats.byDeliveryStatus.not_started, 1);
+  assert.equal(adminResponse.orderStats.byDeliveryStatus.unknown, 2);
+  assert.equal(JSON.stringify(adminResponse).includes('buyer@example.test'), false);
 }
 
 run().catch((error) => {

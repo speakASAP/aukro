@@ -377,8 +377,15 @@ export class UiController {
       throw new ForbiddenException('Admin sekce je dostupna pouze spravcum Aukro sluzby.');
     }
 
+    const orders = await this.prisma.aukroOrder.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    const hydratedOrders = await this.hydrateOrdersWithCentralReadModel(orders);
+
     return {
       admin: user.email,
+      orderStats: this.adminOrderStats(hydratedOrders, 100),
       services: [
         { name: 'Auth microservice', role: 'Centralni prihlaseni, registrace a JWT', route: '/aukro/ui/auth/login', owner: 'auth-microservice' },
         { name: 'Catalog microservice', role: 'Zdroj produktu pro publikovani na Aukro', route: '/aukro/ui/catalog/products', owner: 'catalog-microservice' },
@@ -763,6 +770,51 @@ export class UiController {
       ordersWithCentralStatus: orders.filter((order) => this.asRecord(order.centralOrderRead).status === 'available').length,
       staleOrders: orders.filter((order) => this.asRecord(order.centralOrderRead).status !== 'available').length,
     };
+  }
+
+  private adminOrderStats(orders: any[], sampleLimit: number) {
+    return {
+      sampleLimit,
+      sampledOrders: orders.length,
+      totalOrders: orders.length,
+      forwardedOrders: orders.filter((order) => order.forwarded).length,
+      unforwardedOrders: orders.filter((order) => !order.forwarded).length,
+      ordersWithCentralStatus: orders.filter((order) => this.orderReadStatusFor(order) === 'available').length,
+      staleOrders: orders.filter((order) => this.orderReadStatusFor(order) !== 'available').length,
+      byOrdersReadStatus: this.countOrdersBy(orders, (order) => this.orderReadStatusFor(order)),
+      byOrderStatus: this.countOrdersBy(orders, (order) => this.centralOrderValue(order, 'status') || order.status),
+      byLifecycleStage: this.countOrdersBy(orders, (order) => this.centralLifecycleStage(order) || this.orderReadStatusFor(order)),
+      byPaymentStatus: this.countOrdersBy(orders, (order) => this.centralOrderValue(order, 'paymentStatus')),
+      byFulfillmentStatus: this.countOrdersBy(orders, (order) => this.centralOrderValue(order, 'fulfillmentStatus')),
+      byDeliveryStatus: this.countOrdersBy(orders, (order) => this.centralOrderValue(order, 'deliveryStatus')),
+    };
+  }
+
+  private orderReadStatusFor(order: any): string {
+    return this.textOrNull(this.asRecord(order.centralOrderRead).status) || (order.orderId ? 'unavailable' : 'missing_order_id');
+  }
+
+  private centralOrderValue(order: any, field: string): string | null {
+    const centralOrder = this.asRecord(this.asRecord(order.centralOrderRead).order);
+    return this.textOrNull(centralOrder[field]);
+  }
+
+  private centralLifecycleStage(order: any): string | null {
+    const centralOrder = this.asRecord(this.asRecord(order.centralOrderRead).order);
+    const centralLifecycle = this.asRecord(centralOrder.lifecycle);
+    return this.textOrNull(centralOrder.lifecycleStage ?? centralLifecycle.lifecycleStage ?? centralLifecycle.stage);
+  }
+
+  private countOrdersBy(orders: any[], selector: (order: any) => any): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const order of orders) {
+      const key = (this.textOrNull(selector(order)) || 'unknown').toLowerCase();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return Object.keys(counts).sort().reduce((result, key) => {
+      result[key] = counts[key];
+      return result;
+    }, {} as Record<string, number>);
   }
 
   private orderLifecycleLabel(stage: string | null): string {
@@ -1660,6 +1712,7 @@ export class UiController {
             <div class="admin panel" id="adminView">
               <h2 class="section-title">Admin sekce Alfares služeb</h2>
               <p class="muted">Viditelné pouze pro správce Aukro služby.</p>
+              <div id="adminOrderStats"></div>
               <div class="services" id="services"></div>
             </div>
           </div>
@@ -2076,9 +2129,21 @@ export class UiController {
         $('catalogMessage').textContent = error.message;
       } finally { button.disabled = false; }
     };
+    const renderAdminBreakdown = (title, values) => {
+      const entries = Object.entries(values || {});
+      const pills = entries.length ? entries.map(([key, value]) => '<span class="pill">' + escapeHtml(key) + ': ' + escapeHtml(value) + '</span>').join('') : '<span class="pill">žádná data</span>';
+      return '<div class="service"><b>' + escapeHtml(title) + '</b><div class="meta">' + pills + '</div></div>';
+    };
+    const renderAdminOrderStats = (stats = {}) => {
+      const metrics = '<div class="metrics">' + metric(stats.totalOrders || 0, 'objednávky ve vzorku') + metric(stats.forwardedOrders || 0, 'předáno Orders') + metric(stats.unforwardedOrders || 0, 'nepředáno') + metric(stats.ordersWithCentralStatus || 0, 'Orders stav načten') + metric(stats.staleOrders || 0, 'unknown/stale') + '</div>';
+      const note = '<p class="muted">Agregace posledních ' + escapeHtml(stats.sampledOrders || 0) + ' z max. ' + escapeHtml(stats.sampleLimit || 0) + ' lokálních Aukro objednávek bez zákaznických detailů.</p>';
+      const breakdowns = '<div class="services">' + renderAdminBreakdown('Orders read status', stats.byOrdersReadStatus) + renderAdminBreakdown('Order status', stats.byOrderStatus) + renderAdminBreakdown('Lifecycle', stats.byLifecycleStage) + renderAdminBreakdown('Platba', stats.byPaymentStatus) + renderAdminBreakdown('Fulfillment', stats.byFulfillmentStatus) + renderAdminBreakdown('Doručení', stats.byDeliveryStatus) + '</div>';
+      return note + metrics + breakdowns;
+    };
     const loadAdmin = async () => {
       const result = await api('/aukro/ui/admin/services');
       $('adminView').style.display = 'block';
+      $('adminOrderStats').innerHTML = renderAdminOrderStats(result.orderStats || {});
       $('services').innerHTML = result.services.map((service) => '<div class="service"><b>' + escapeHtml(service.name) + '</b><p class="muted">' + escapeHtml(service.role) + '</p><div class="meta"><span class="pill">' + escapeHtml(service.owner) + '</span><span class="pill">' + escapeHtml(service.route) + '</span></div></div>').join('');
     };
     const money = (value, currency = 'CZK') => value === null || value === undefined ? 'cena nezadaná' : new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: currency || 'CZK' }).format(Number(value));

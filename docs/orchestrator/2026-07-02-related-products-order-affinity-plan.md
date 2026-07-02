@@ -179,7 +179,7 @@ Bundle selling remains blocked until Warehouse reservation, Orders create-order,
 
 ## Coding Prompt
 
-Implement only the workstream assigned to this repository. Preserve service ownership boundaries. Do not copy raw customer, address, payment, tracking, provider, or credential data into related-products artifacts. Keep all new contracts additive where possible, use focused validation, and record remaining blockers with `[MISSING: ...]` or `[UNKNOWN: ...]`.
+Implement only the workstream assigned to this repository. Preserve service ownership boundaries. Do not place unredacted customer, address, payment, tracking, provider, or credential data into related-products artifacts. Keep all new contracts additive where possible, use focused validation, and record remaining blockers with `[MISSING: ...]` or `[UNKNOWN: ...]`.
 
 ## Next Validation
 
