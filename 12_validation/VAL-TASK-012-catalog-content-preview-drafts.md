@@ -54,3 +54,26 @@ Accept TASK-012 for human diff review and merge after the Catalog preview endpoi
 ## Traceability confirmation
 
 Vision -> `01_vision/VISION.md` -> Feature -> `10_features/FEAT-005-catalog-warehouse-publisher.md` -> Task -> `11_tasks/TASK-012-catalog-content-preview-drafts.md` -> Execution Plan -> `21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md` -> Coding Prompt -> `14_prompts/PROMPT-TASK-012-catalog-content-preview-drafts.md` -> Code -> Validation -> `12_validation/VAL-TASK-012-catalog-content-preview-drafts.md`.
+
+
+## 2026-07-02 Goal 25 Manual Review Metadata Continuation
+
+Catalog Goal 25 added marketplace-field manual/stale propagation metadata. Aukro now preserves that metadata in the sanitized content-preview response and renders it in the existing catalog preview UI.
+
+### Additional Criteria Checked
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Manual/stale metadata survives sanitization | Pass | `publicContentPreview` includes `manualOverride`, `stale`, `requiresManualReview`, `propagation`, `profile`, `fields`, and `staleManualFields`. |
+| UI surfaces review state | Pass | Catalog preview renders `Manual override`, `Source changed`, and `Review required` badges plus stale field names. |
+| Draft/publish behavior unchanged | Pass | No draft creation, publish queue, executor, Orders, Warehouse, Catalog mutation, migration, Kubernetes, or secret path changed. |
+
+### Additional Validation Evidence
+
+- `git diff --check`: PASS.
+- `LOGGING_SERVICE_URL=http://logging-microservice:3367 npx ts-node --skip-ignore --compiler-options {"types":["node"]} services/aukro-service/src/ui/ui.controller.spec.ts`: PASS.
+- `LOGGING_SERVICE_URL=http://logging-microservice:3367 npm --prefix services/aukro-service run build`: PASS.
+
+### Boundary Decision
+
+This continuation is read/review metadata only. It does not disable confirm, enqueue publish work, call external Aukro APIs, mutate Catalog, mutate Warehouse, mutate Orders, run migrations, print tokens, or deploy.

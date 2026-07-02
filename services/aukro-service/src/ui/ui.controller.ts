@@ -419,6 +419,13 @@ export class UiController {
         generatedAt: this.textOrNull(source.generatedAt),
       },
       overridesApplied: preview.overridesApplied === undefined ? undefined : Boolean(preview.overridesApplied),
+      manualOverride: preview.manualOverride === undefined ? undefined : Boolean(preview.manualOverride),
+      stale: preview.stale === undefined ? undefined : Boolean(preview.stale),
+      requiresManualReview: preview.requiresManualReview === undefined ? undefined : Boolean(preview.requiresManualReview),
+      propagation: this.asRecord(preview.propagation),
+      profile: this.asRecord(preview.profile),
+      fields: Array.isArray(preview.fields) ? preview.fields : [],
+      staleManualFields: Array.isArray(preview.staleManualFields) ? preview.staleManualFields.map((item: any) => String(item)).filter(Boolean) : [],
       warnings: Array.isArray(preview.warnings) ? preview.warnings.map((item) => String(item)).filter(Boolean) : [],
     };
   }
@@ -1445,6 +1452,20 @@ export class UiController {
       white-space: pre-wrap;
       color: var(--ink);
     }
+    .catalog-review-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .catalog-review-badge {
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 760;
+    }
+    .catalog-review-badge.manual { background: #e8f1ff; color: #174ea6; }
+    .catalog-review-badge.stale { background: #fff4d6; color: #8a4b00; }
+    .catalog-review-badge.review { background: #ffe4e6; color: #9f1239; }
     .workspace { display: grid; gap: 16px; }
     .list { display: grid; gap: 10px; }
     .listing-row {
@@ -2035,6 +2056,51 @@ export class UiController {
       }
       return '';
     };
+    const catalogPreviewReview = (preview) => {
+      const fields = Array.isArray(preview?.fields) ? preview.fields : [];
+      const propagation = preview?.propagation || {};
+      const profile = preview?.profile || {};
+      const manualOverrides = profile.manualOverrides || preview?.manualOverrides || {};
+      const staleManualFields = [
+        ...(Array.isArray(propagation.staleManualFields) ? propagation.staleManualFields : []),
+        ...(Array.isArray(profile.staleManualFields) ? profile.staleManualFields : []),
+        ...(Array.isArray(preview?.staleManualFields) ? preview.staleManualFields : []),
+        ...fields.filter((field) => field?.manualOverride && field?.stale).map((field) => field.key || field.name || field.field).filter(Boolean),
+      ].filter(Boolean);
+      const hasManualOverride = Boolean(
+        preview?.manualOverride ||
+        preview?.hasManualOverrides ||
+        profile.hasManualOverrides ||
+        Object.keys(manualOverrides).length ||
+        fields.some((field) => field?.manualOverride)
+      );
+      const stale = Boolean(
+        preview?.stale ||
+        preview?.sourceChanged ||
+        propagation.status === 'manual_review_required' ||
+        staleManualFields.length ||
+        fields.some((field) => field?.stale)
+      );
+      const requiresManualReview = Boolean(
+        preview?.requiresManualReview ||
+        propagation.status === 'manual_review_required' ||
+        staleManualFields.length ||
+        (hasManualOverride && stale)
+      );
+      return { hasManualOverride, stale, requiresManualReview, staleManualFields: Array.from(new Set(staleManualFields)) };
+    };
+    const catalogPreviewReviewMarkup = (preview) => {
+      const review = catalogPreviewReview(preview);
+      const badges = [
+        review.hasManualOverride ? '<span class="catalog-review-badge manual">Manual override</span>' : '',
+        review.stale ? '<span class="catalog-review-badge stale">Source changed</span>' : '',
+        review.requiresManualReview ? '<span class="catalog-review-badge review">Review required</span>' : '',
+      ].filter(Boolean).join('');
+      const warning = review.requiresManualReview
+        ? '<div class="message warn">Catalog source changed after manual Aukro edits. Review these fields before publishing: ' + escapeHtml(review.staleManualFields.length ? review.staleManualFields.join(', ') : 'manual marketplace fields') + '.</div>'
+        : '';
+      return (badges ? '<div class="catalog-review-badges">' + badges + '</div>' : '') + warning;
+    };
     const renderCatalogPreview = (preview) => {
       state.pendingProductId = preview.productId || state.pendingProductId;
       $('catalogPreview').classList.remove('hidden');
@@ -2048,7 +2114,8 @@ export class UiController {
         (source.canonicalDocumentVersion ? '<span class="pill">verze ' + escapeHtml(source.canonicalDocumentVersion) + '</span>' : '') +
         (source.sourceHash ? '<span class="pill">hash ' + escapeHtml(source.sourceHash) + '</span>' : '') +
         (source.generatedAt ? '<span class="pill">' + escapeHtml(source.generatedAt) + '</span>' : '') +
-        (source.legacyDescriptionFallback ? '<span class="pill">fallback</span>' : '');
+        (source.legacyDescriptionFallback ? '<span class="pill">fallback</span>' : '') +
+        catalogPreviewReviewMarkup(preview);
       $('catalogPreviewWarnings').className = warnings.length ? 'message warn' : 'message ok';
       $('catalogPreviewWarnings').textContent = warnings.length ? 'Varovani: ' + warnings.join(', ') : 'Canonical content preview je pripraveny pro draft.';
     };

@@ -121,6 +121,23 @@ async function run() {
     localMissingIdOrder,
     localUnavailableOrder,
   ]);
+  const publicPreview = controller.publicContentPreview({
+    marketplace: 'aukro',
+    content: { title: 'Manual Aukro title', plainText: 'Manual Aukro description' },
+    propagation: { status: 'manual_review_required', staleManualFields: ['description'] },
+    profile: { hasManualOverrides: true, manualOverrides: { description: true } },
+    fields: [{ key: 'description', manualOverride: true, stale: true }],
+    manualOverride: true,
+    stale: true,
+    requiresManualReview: true,
+  });
+  assert.equal(publicPreview.manualOverride, true);
+  assert.equal(publicPreview.stale, true);
+  assert.equal(publicPreview.requiresManualReview, true);
+  assert.deepEqual(publicPreview.propagation.staleManualFields, ['description']);
+  assert.equal(publicPreview.profile.hasManualOverrides, true);
+  assert.equal(publicPreview.fields[0].key, 'description');
+
   const adminResponse = await adminController.adminServices({
     user: {
       email: 'ops@example.test',

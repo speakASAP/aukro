@@ -23,6 +23,8 @@
 - 2026-06-13 task-002-ai-commerce-roadmap: added AI commerce roadmap, MS-003, FEAT-004..FEAT-009, integration map, orchestrator, task package, and validation report.
 - 2026-04-05 documentation-standard-applied
 
+- 2026-07-02 task-012-goal-25-manual-review-metadata-adopted: Aukro catalog preview now preserves and displays Catalog manual override, source changed, and review required metadata without changing draft creation or publish behavior.
+
 ## Project Completion Marker
 
 - 2026-06-21: Project marked completed/frozen after remote inventory. There are no active goals, active plans, open tasks, blockers, or pending human/AI actions. Do not ask for a new goal during routine status checks unless the owner explicitly creates one.
