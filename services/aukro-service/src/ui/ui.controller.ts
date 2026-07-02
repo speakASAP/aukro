@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { AuthResponse, AuthService, AuthUser, CatalogClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
+import { AuthResponse, AuthService, AuthUser, CatalogClientService, OrderClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 
 interface UiAuthRequest {
@@ -29,6 +29,7 @@ export class UiController {
     private readonly authService: AuthService,
     private readonly catalogClient: CatalogClientService,
     private readonly offersService: OffersService,
+    private readonly orderClient: OrderClientService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -102,14 +103,15 @@ export class UiController {
         take: 12,
       }),
     ]);
+    const hydratedOrders = await this.hydrateOrdersWithCentralReadModel(orders);
 
     return {
       user,
       account: this.publicAccount(account),
       isAukroAdmin: this.isAukroAdmin(user),
-      summary: this.dashboardSummary(offers, orders),
+      summary: this.dashboardSummary(offers, hydratedOrders),
       offers: offers.map((offer) => this.publicOffer(offer)),
-      orders: orders.map((order) => this.publicOrder(order)),
+      orders: hydratedOrders.map((order) => this.publicOrder(order)),
     };
   }
 
@@ -624,22 +626,60 @@ export class UiController {
     return null;
   }
 
+  private async hydrateOrdersWithCentralReadModel(orders: any[]): Promise<any[]> {
+    return Promise.all(orders.map(async (order) => {
+      const centralOrderId = this.textOrNull(order.orderId);
+      if (!centralOrderId) {
+        return { ...order, centralOrderRead: { status: 'missing_order_id' } };
+      }
+
+      const centralOrder = await this.orderClient.getOrderReadModel(centralOrderId);
+      if (!centralOrder) {
+        return { ...order, centralOrderRead: { status: 'unavailable' } };
+      }
+
+      return { ...order, centralOrderRead: { status: 'available', order: centralOrder } };
+    }));
+  }
+
   private publicOrder(order: any) {
     const rawData = this.asRecord(order.rawData);
     const items = this.extractOrderItems(rawData);
     const title = this.textOrNull(rawData.title ?? rawData.name ?? rawData.orderTitle) || `Objednávka ${order.aukroOrderId || order.id}`;
+    const centralRead = this.asRecord(order.centralOrderRead);
+    const centralOrder = this.asRecord(centralRead.order);
+    const centralLifecycle = this.asRecord(centralOrder.lifecycle);
+    const readStatus = this.textOrNull(centralRead.status) || (order.orderId ? 'unavailable' : 'missing_order_id');
+    const centralOrderId = this.textOrNull(centralOrder.id ?? order.orderId);
+    const centralStatus = this.textOrNull(centralOrder.status);
+    const lifecycleStage = this.textOrNull(centralOrder.lifecycleStage ?? centralLifecycle.lifecycleStage ?? centralLifecycle.stage);
+    const paymentStatus = this.textOrNull(centralOrder.paymentStatus);
+    const fulfillmentStatus = this.textOrNull(centralOrder.fulfillmentStatus);
+    const deliveryStatus = this.textOrNull(centralOrder.deliveryStatus);
+    const displayStage = lifecycleStage || centralStatus || 'unknown';
 
     return {
       id: order.id,
       aukroOrderId: order.aukroOrderId,
       orderId: order.orderId,
+      centralOrderId,
       title,
       imageUrl: this.extractImageUrl(rawData),
       items: items.map((item) => this.publicOrderItem(item)).slice(0, 12),
       customerEmail: order.customerEmail,
       total: this.numberOrNull(order.total),
       currency: order.currency,
-      status: order.status,
+      localStatus: order.status,
+      status: centralStatus || 'unknown',
+      lifecycleStage: lifecycleStage || 'unknown',
+      lifecycleLabel: this.orderLifecycleLabel(displayStage),
+      paymentStatus,
+      fulfillmentStatus,
+      deliveryStatus,
+      ordersReadStatus: readStatus,
+      statusSource: readStatus === 'available' ? 'orders' : 'unknown_stale',
+      statusMessage: this.orderReadStatusMessage(readStatus),
+      stale: readStatus !== 'available',
       forwarded: Boolean(order.forwarded),
       createdAt: order.createdAt,
     };
@@ -720,7 +760,47 @@ export class UiController {
       blockedDrafts: offers.filter((offer) => this.asRecord(this.asRecord(offer.rawData).draft).draftStatus === 'blocked').length,
       ordersTotal: orders.length,
       unforwardedOrders: orders.filter((order) => !order.forwarded).length,
+      ordersWithCentralStatus: orders.filter((order) => this.asRecord(order.centralOrderRead).status === 'available').length,
+      staleOrders: orders.filter((order) => this.asRecord(order.centralOrderRead).status !== 'available').length,
     };
+  }
+
+  private orderLifecycleLabel(stage: string | null): string {
+    const key = (this.textOrNull(stage) || 'unknown').toLowerCase();
+    const labels: Record<string, string> = {
+      ordered_unpaid: 'objednáno / čeká na platbu',
+      payment_failed: 'platba selhala',
+      paid_not_delivered: 'zaplaceno / čeká na doručení',
+      warehouse_fulfillment_requested: 'předáno skladu',
+      warehouse_collecting: 'sklad vybírá zboží',
+      warehouse_forming: 'sklad balí zásilku',
+      warehouse_formed: 'připraveno k odeslání',
+      handed_to_delivery: 'předáno dopravě',
+      in_delivery: 'v doručení',
+      received: 'doručeno',
+      not_received: 'nedoručeno',
+      returned: 'vráceno',
+      cancelled: 'zrušeno',
+      pending: 'čeká',
+      confirmed: 'potvrzeno',
+      processing: 'zpracování',
+      shipped: 'odesláno',
+      delivered: 'doručeno',
+      failed: 'selhalo',
+      unknown: 'unknown/stale',
+    };
+    return labels[key] || key.replace(/_/g, ' ');
+  }
+
+  private orderReadStatusMessage(status: string): string {
+    switch (status) {
+      case 'available':
+        return 'Orders stav načten';
+      case 'missing_order_id':
+        return 'chybí central Orders ID';
+      default:
+        return 'Orders stav je unknown/stale';
+    }
   }
 
   private asRecord(value: any): Record<string, any> {
@@ -1707,7 +1787,7 @@ export class UiController {
       $('linkDot').classList.toggle('ok', Boolean(account.isLinkedToAukro));
       $('accountLink').textContent = account.isLinkedToAukro ? 'Aukro účet je připojený' : 'Aukro API účet zatím není připojený';
       $('accountMeta').innerHTML = '<span class="pill">' + escapeHtml(account.email || 'email nezadán') + '</span><span class="pill">' + (account.isActive ? 'aktivní' : 'neaktivní') + '</span><span class="pill">ID ' + escapeHtml(account.id || '-') + '</span>';
-      $('metrics').innerHTML = metric(summary.offersTotal || 0, 'nabídky celkem') + metric(summary.activeOffers || 0, 'aktivní nabídky') + metric(summary.drafts || 0, 'drafty') + metric(summary.blockedDrafts || 0, 'blokované drafty') + metric(summary.ordersTotal || 0, 'objednávky') + metric(summary.unforwardedOrders || 0, 'nepředané objednávky');
+      $('metrics').innerHTML = metric(summary.offersTotal || 0, 'nabídky celkem') + metric(summary.activeOffers || 0, 'aktivní nabídky') + metric(summary.drafts || 0, 'drafty') + metric(summary.blockedDrafts || 0, 'blokované drafty') + metric(summary.ordersTotal || 0, 'objednávky') + metric(summary.ordersWithCentralStatus || 0, 'Orders stav načten') + metric(summary.staleOrders || 0, 'unknown/stale Orders') + metric(summary.unforwardedOrders || 0, 'nepředané objednávky');
       renderOffers(dashboard.offers || []);
       renderOrders(dashboard.orders || []);
     };
@@ -1720,21 +1800,42 @@ export class UiController {
         return '<article class="listing-row"><div class="listing-thumb">A</div><div class="listing-main"><span class="condition">' + (offer.isActive ? 'Aktivní' : 'Draft') + '</span><b>' + escapeHtml(offer.title || 'Nabídka bez názvu') + '</b><div class="meta"><span class="pill">' + escapeHtml(stateLabel) + '</span><span class="pill">sklad ' + escapeHtml(offer.stockQuantity ?? 0) + '</span>' + blockers + '</div></div><div class="listing-side"><span class="price">' + money(offer.price) + '</span><span class="muted">' + (offer.isActive ? 'publikováno' : 'čeká na kontrolu') + '</span></div></article>';
       }).join('');
     };
+    const orderMeta = (order) => {
+      if (order.stale) return order.statusMessage || 'unknown/stale Orders';
+      const status = order.status && order.status !== order.lifecycleStage ? ' / ' + order.status : '';
+      return (order.lifecycleLabel || order.lifecycleStage || 'Orders') + status;
+    };
+    const orderTags = (order) => {
+      const tags = [];
+      if (order.forwarded === false) tags.push('nepředáno');
+      if (order.centralOrderId) tags.push('Orders ID ' + order.centralOrderId);
+      if (order.lifecycleStage && order.lifecycleStage !== 'unknown') tags.push('lifecycle ' + order.lifecycleStage);
+      if (order.status && order.status !== 'unknown') tags.push('status ' + order.status);
+      if (order.stale) tags.push(order.statusMessage || 'unknown/stale');
+      return tags;
+    };
     const renderOrders = (orders) => {
       const soldProducts = orders.flatMap((order) => {
         const items = Array.isArray(order.items) ? order.items : [];
+        const tags = orderTags(order);
+        const meta = orderMeta(order);
         if (items.length) {
           return items.map((item) => ({
             title: item.title || order.title || ('Objednávka ' + (order.aukroOrderId || order.id)),
             imageUrl: item.imageUrl || order.imageUrl || '',
+            meta,
+            tags,
           }));
         }
         return [{
           title: order.title || ('Objednávka ' + (order.aukroOrderId || order.id)),
           imageUrl: order.imageUrl || '',
+          meta,
+          tags,
         }];
       });
-      $('ordersMessage').textContent = soldProducts.length ? 'Prodáno na Aukro: ' + soldProducts.length + ' produktů.' : 'Zatím nejsou uložené žádné prodané produkty z Aukro.';
+      const staleCount = orders.filter((order) => order.stale).length;
+      $('ordersMessage').textContent = soldProducts.length ? 'Prodáno na Aukro: ' + soldProducts.length + ' produktů.' + (staleCount ? ' Unknown/stale Orders stav: ' + staleCount + '.' : '') : 'Zatím nejsou uložené žádné prodané produkty z Aukro.';
       $('orders').innerHTML = soldProducts.map((item) => compactProductCard(item, false)).join('');
     };
     const updateSelectedCount = () => {
