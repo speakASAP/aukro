@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-07-02T17:30:33Z",
+  "created_at": "2026-07-02T21:35:05Z",
   "execution_plans": {
-    "execution_plan_count": 16,
+    "execution_plan_count": 17,
     "execution_plan_files": [
       "21_execution_plans/EP-TASK-001.md",
       "21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md",
@@ -18,7 +18,8 @@
       "21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md",
       "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md",
       "21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md",
-      "21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md"
+      "21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md",
+      "21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md"
     ],
     "missing_validation_plan": []
   },
@@ -52,7 +53,7 @@
   "status": "pass",
   "tasks": {
     "missing_upstream_traceability": [],
-    "task_count": 16,
+    "task_count": 17,
     "task_files": [
       "11_tasks/TASK-001-implement-ips-governance-baseline.md",
       "11_tasks/TASK-002-create-ai-commerce-roadmap.md",
@@ -69,7 +70,8 @@
       "11_tasks/TASK-013-dashboard-bulk-publish-candidates.md",
       "11_tasks/TASK-014-official-aukro-public-api-executor.md",
       "11_tasks/TASK-015-mp-xml-feed-executor.md",
-      "11_tasks/TASK-016-orders-create-synthetic-smoke.md"
+      "11_tasks/TASK-016-orders-create-synthetic-smoke.md",
+      "11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md"
     ]
   }
 }

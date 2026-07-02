@@ -1,13 +1,28 @@
+import { CatalogProductQualityIssue } from '@aukro/shared';
 import { OfferPolicyEvaluation, OfferPolicyEvidence } from './policy/offer-policy.types';
 
 export type CatalogDraftStatus = 'ready_for_review' | 'blocked';
 export type CatalogDraftDescriptionSource = 'catalog-content-preview' | 'catalog-product-description' | 'empty';
+export type CatalogDraftQualitySource = 'catalog-product-readiness' | 'catalog-product-quality-unavailable';
+
+export interface CatalogDraftQualitySnapshot {
+  policyId: 'catalog.product_quality.v1';
+  productId: string;
+  canActivate: boolean;
+  source: CatalogDraftQualitySource;
+  checkedAt: string;
+  blockingIssues: CatalogProductQualityIssue[];
+  blockingIssueCodes: string[];
+  optionalOpportunities: CatalogProductQualityIssue[];
+  nextAction: string;
+}
 
 export interface CatalogSellActionRequest {
   accountId: string;
   productId: string;
   requestedBy?: string;
   policyEvidence?: OfferPolicyEvidence;
+  catalogAuthorization?: string | null;
 }
 
 export interface CatalogDraftContentPreviewSnapshot {
@@ -40,6 +55,7 @@ export interface CatalogDraftSourceSnapshot {
   stockQuantity: number;
   mediaCount: number;
   capturedAt: string;
+  catalogQuality: CatalogDraftQualitySnapshot;
   contentPreview?: CatalogDraftContentPreviewSnapshot;
 }
 

@@ -317,6 +317,24 @@ nodes:
 - id: VAL-AU2-orders-lifecycle-cabinet-admin-stats
   type: ValidationReport
   path: 12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md
+- id: TASK-017
+  type: Task
+  path: 11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md
+- id: EP-TASK-017
+  type: ExecutionPlan
+  path: 21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md
+- id: CP-TASK-017
+  type: ContextPackage
+  path: 13_context_packages/CP-TASK-017-catalog-goal25-product-quality-blockers.md
+- id: PROMPT-TASK-017-catalog-goal25-product-quality-blockers
+  type: CodingPrompt
+  path: 14_prompts/PROMPT-TASK-017-catalog-goal25-product-quality-blockers.md
+- id: GOAL-IMPACT-TASK-017
+  type: GoalImpact
+  path: 22_goal_impact/GOAL-IMPACT-TASK-017.md
+- id: VAL-TASK-017-catalog-goal25-product-quality-blockers
+  type: ValidationReport
+  path: 12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md
 edges:
 - from: TASK-001
   type: impacts_goal
@@ -804,6 +822,36 @@ edges:
 - from: VAL-TASK-016-orders-create-synthetic-smoke
   type: validates
   to: TASK-016
+- from: TASK-017
+  type: impacts_goal
+  to: GOAL-AUKRO-001
+- from: TASK-017
+  type: implements
+  to: FEAT-005
+- from: TASK-017
+  type: decomposes_into
+  to: EP-TASK-017
+- from: TASK-017
+  type: has_goal_impact
+  to: GOAL-IMPACT-TASK-017
+- from: EP-TASK-017
+  type: derives_from
+  to: TASK-017
+- from: EP-TASK-017
+  type: generates
+  to: PROMPT-TASK-017-catalog-goal25-product-quality-blockers
+- from: EP-TASK-017
+  type: constrained_by
+  to: ADR-001
+- from: PROMPT-TASK-017-catalog-goal25-product-quality-blockers
+  type: derives_from
+  to: EP-TASK-017
+- from: PROMPT-TASK-017-catalog-goal25-product-quality-blockers
+  type: included_in_context
+  to: CP-TASK-017
+- from: VAL-TASK-017-catalog-goal25-product-quality-blockers
+  type: validates
+  to: TASK-017
 - from: VAL-AU2-orders-lifecycle-cabinet-admin-stats
   type: validates
   to: FEAT-003

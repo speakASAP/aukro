@@ -2,7 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { createHash } from 'crypto';
 import {
   AiClientService,
+  CATALOG_PRODUCT_QUALITY_POLICY_ID,
+  CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER,
   CatalogClientService,
+  CatalogProductQualityIssue,
+  CatalogProductReadiness,
   LoggerService,
   LoggingClientService,
   NotificationsClientService,
@@ -12,6 +16,7 @@ import {
 import {
   CatalogDraftContentPreviewSnapshot,
   CatalogDraftMetadata,
+  CatalogDraftQualitySnapshot,
   CatalogDraftSourceSnapshot,
   CatalogSellActionRequest,
   CatalogSellActionResponse,
@@ -155,13 +160,17 @@ export class OffersService {
       throw new NotFoundException(`Account ${input.accountId} not found`);
     }
 
-    const [product, stockQuantity, pricing, media, contentPreview] = await Promise.all([
-      this.catalogClient.getProductById(input.productId),
+    const catalogOptions = input.catalogAuthorization ? { authorization: input.catalogAuthorization } : {};
+    const [product, stockQuantity, pricing, media, contentPreview, catalogQuality] = await Promise.all([
+      this.catalogClient.getProductById(input.productId, catalogOptions),
       this.warehouseClient.getTotalAvailable(input.productId),
       this.catalogClient.getProductPricing(input.productId),
       this.catalogClient.getProductMedia(input.productId),
-      this.catalogClient.getProductContentPreview(input.productId, 'aukro'),
+      this.catalogClient.getProductContentPreview(input.productId, 'aukro', catalogOptions),
+      this.loadCatalogQualitySnapshot(input.productId, input.catalogAuthorization),
     ]);
+
+    this.assertCatalogQualityAllowsDraft(catalogQuality);
 
     const existingOffer = await this.prisma.aukroOffer.findFirst({
       where: {
@@ -181,7 +190,7 @@ export class OffersService {
     );
 
     const price = Number(pricing?.basePrice ?? pricing?.price ?? 0);
-    const sourceSnapshot = this.buildCatalogDraftSnapshot({ product, pricing, stockQuantity, media, contentPreview });
+    const sourceSnapshot = this.buildCatalogDraftSnapshot({ product, pricing, stockQuantity, media, contentPreview, catalogQuality });
     const policyEvidence = this.mergePolicyEvidence(
       this.buildDerivedEvidence({
         offer: {
@@ -198,6 +207,7 @@ export class OffersService {
         pricing,
         media,
         duplicateFound,
+        catalogQuality,
       }),
       input.policyEvidence,
     );
@@ -234,7 +244,7 @@ export class OffersService {
       offer,
       sourceSnapshot,
       compliancePolicy,
-      blockers: compliancePolicy.reasonCodes,
+      blockers: this.combinedCatalogAndPolicyBlockers(catalogQuality, compliancePolicy.reasonCodes),
     };
   }
 
@@ -761,6 +771,7 @@ export class OffersService {
     let stockQuantity = offer.stockQuantity;
     let pricing: any = { basePrice: offer.price };
     let media: any[] = [];
+    let catalogQuality: CatalogDraftQualitySnapshot | undefined;
 
     if (offer.productId) {
       try {
@@ -786,6 +797,8 @@ export class OffersService {
       } catch (error: any) {
         this.logger.warn(`Policy evidence media lookup failed for offer ${id}: ${error.message}`);
       }
+
+      catalogQuality = await this.loadCatalogQualitySnapshot(offer.productId);
     }
 
     const duplicateFound = offer.productId
@@ -801,7 +814,7 @@ export class OffersService {
 
     return this.mergePolicyEvidence(
       this.rawPolicyEvidence(offer.rawData),
-      this.buildDerivedEvidence({ offer, product, stockQuantity, pricing, media, duplicateFound }),
+      this.buildDerivedEvidence({ offer, product, stockQuantity, pricing, media, duplicateFound, catalogQuality }),
       suppliedEvidence,
     );
   }
@@ -813,6 +826,7 @@ export class OffersService {
     pricing?: any;
     media?: any[];
     duplicateFound?: boolean;
+    catalogQuality?: CatalogDraftQualitySnapshot;
   }): OfferPolicyEvidence {
     const checkedAt = new Date().toISOString();
     const product = snapshot.product;
@@ -822,9 +836,23 @@ export class OffersService {
     const stockQuantity = Number(snapshot.stockQuantity ?? snapshot.offer.stockQuantity ?? 0);
     const price = snapshot.pricing?.basePrice ?? snapshot.pricing?.price ?? snapshot.offer.price;
     const mediaReady = Boolean(snapshot.media?.length);
+    const catalogQuality = snapshot.catalogQuality;
+    const catalogQualityBlockers = catalogQuality?.blockingIssueCodes || [];
+    const catalogValidated = Boolean(product && product.isActive !== false && (!catalogQuality || catalogQuality.canActivate));
+    const catalogValidationHint = catalogQualityBlockers.length
+      ? `Catalog product quality blockers: ${catalogQualityBlockers.join(', ')}`
+      : catalogQuality?.source === 'catalog-product-quality-unavailable'
+        ? 'Catalog product quality readiness could not be verified; Aukro must fail closed.'
+        : undefined;
 
     return {
-      catalogValidated: this.flag(Boolean(product && product.isActive !== false), checkedAt, 'catalog-microservice'),
+      catalogValidated: {
+        ...this.flag(catalogValidated, checkedAt, 'catalog-microservice'),
+        hint: catalogValidationHint,
+        policyId: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+        blockers: catalogQualityBlockers,
+        nextAction: catalogQuality?.nextAction,
+      },
       accountReady: this.flag(Boolean(snapshot.offer.account?.isActive), checkedAt, 'aukro-service'),
       categoryMapped: this.flag(categoryMapped, checkedAt, 'aukro-service'),
       requiredParametersComplete: this.flag(requiredParametersComplete, checkedAt, 'aukro-service'),
@@ -849,6 +877,7 @@ export class OffersService {
     stockQuantity: number;
     media: any[];
     contentPreview?: any | null;
+    catalogQuality: CatalogDraftQualitySnapshot;
   }): CatalogDraftSourceSnapshot {
     const product = snapshot.product || {};
     const price = Number(snapshot.pricing?.basePrice ?? snapshot.pricing?.price ?? 0);
@@ -872,8 +901,110 @@ export class OffersService {
       stockQuantity: Number(snapshot.stockQuantity || 0),
       mediaCount: snapshot.media?.length || 0,
       capturedAt: new Date().toISOString(),
+      catalogQuality: snapshot.catalogQuality,
       ...(contentPreview ? { contentPreview } : {}),
     };
+  }
+
+
+  private async loadCatalogQualitySnapshot(productId: string, authorization?: string | null): Promise<CatalogDraftQualitySnapshot> {
+    try {
+      const readiness = await this.catalogClient.getProductQualityReadiness(productId, authorization ? { authorization } : {});
+      return this.buildCatalogQualitySnapshot(productId, readiness);
+    } catch (error: any) {
+      this.logger.warn(`Catalog product quality lookup failed for product ${productId}: ${error.message}`);
+      return this.catalogQualityUnavailableSnapshot(productId);
+    }
+  }
+
+  private buildCatalogQualitySnapshot(productId: string, readiness: CatalogProductReadiness): CatalogDraftQualitySnapshot {
+    const issues = this.catalogQualityIssues(readiness?.issues);
+    const blockingIssues = issues.filter((issue) => this.isMandatoryCatalogQualityBlocker(issue));
+    const optionalOpportunities = issues.filter((issue) => !blockingIssues.some((blocking) => blocking.code === issue.code));
+    const blockingIssueCodes = Array.from(new Set(blockingIssues.map((issue) => issue.code)));
+
+    return {
+      policyId: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      productId: readiness?.productId || productId,
+      canActivate: blockingIssueCodes.length === 0,
+      source: 'catalog-product-readiness',
+      checkedAt: new Date().toISOString(),
+      blockingIssues,
+      blockingIssueCodes,
+      optionalOpportunities,
+      nextAction: this.catalogQualityNextAction(blockingIssues),
+    };
+  }
+
+  private catalogQualityUnavailableSnapshot(productId: string): CatalogDraftQualitySnapshot {
+    const issue: CatalogProductQualityIssue = {
+      code: CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER,
+      field: 'catalog_quality',
+      severity: 'blocking',
+      source: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      message: 'Catalog product quality readiness is unavailable.',
+    };
+
+    return {
+      policyId: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      productId,
+      canActivate: false,
+      source: 'catalog-product-quality-unavailable',
+      checkedAt: new Date().toISOString(),
+      blockingIssues: [issue],
+      blockingIssueCodes: [issue.code],
+      optionalOpportunities: [],
+      nextAction: 'retry_catalog_product_quality_review',
+    };
+  }
+
+  private assertCatalogQualityAllowsDraft(catalogQuality: CatalogDraftQualitySnapshot): void {
+    if (catalogQuality.canActivate) return;
+
+    throw new BadRequestException({
+      message: `Catalog product quality blockers prevent Aukro draft creation: ${catalogQuality.blockingIssueCodes.join(', ')}`,
+      policyId: catalogQuality.policyId,
+      blockers: catalogQuality.blockingIssueCodes,
+      catalogQuality,
+    });
+  }
+
+  private catalogQualityIssues(issues: CatalogProductQualityIssue[] | undefined): CatalogProductQualityIssue[] {
+    if (!Array.isArray(issues)) return [];
+    return issues
+      .map((issue) => ({
+        code: this.textOrUndefined(issue?.code) || 'unknown_catalog_quality_issue',
+        field: this.textOrUndefined(issue?.field),
+        severity: this.textOrUndefined(issue?.severity) || 'warning',
+        message: this.textOrUndefined(issue?.message),
+        source: this.textOrUndefined(issue?.source) || CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      }))
+      .filter((issue) => Boolean(issue.code));
+  }
+
+  private isMandatoryCatalogQualityBlocker(issue: CatalogProductQualityIssue): boolean {
+    const code = this.textOrUndefined(issue.code);
+    if (!code || issue.severity !== 'blocking') return false;
+    return !['draft_product', 'needs_review', 'inactive_product'].includes(code);
+  }
+
+  private catalogQualityNextAction(blockingIssues: CatalogProductQualityIssue[]): string {
+    if (!blockingIssues.length) return 'ready_for_activation';
+    const fields = Array.from(new Set(blockingIssues.map((issue) => this.catalogQualityFieldKey(issue))));
+    return `resolve_catalog_quality_blockers:${fields.join(',')}`;
+  }
+
+  private catalogQualityFieldKey(issue: CatalogProductQualityIssue): string {
+    if (issue.code === 'missing_current_price') return 'price';
+    if (issue.code === 'missing_image' || issue.code === 'placeholder_image_only') return 'image';
+    return this.textOrUndefined(issue.field) || issue.code;
+  }
+
+  private combinedCatalogAndPolicyBlockers(catalogQuality: CatalogDraftQualitySnapshot | undefined, policyReasonCodes: string[]): string[] {
+    return Array.from(new Set([
+      ...(catalogQuality?.blockingIssueCodes || []),
+      ...(policyReasonCodes || []),
+    ]));
   }
 
   private buildContentPreviewSnapshot(contentPreview?: any | null): CatalogDraftContentPreviewSnapshot | undefined {

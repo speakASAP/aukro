@@ -7,7 +7,7 @@ const { OfferPolicyService } = require('./policy/offer-policy.service');
 
 const fresh = new Date().toISOString();
 
-function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; contentPreview?: any; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
+function createHarness(overrides: { stock?: number; warehouseError?: Error; media?: any[]; pricing?: any; product?: any; contentPreview?: any; qualityReadiness?: any; qualityError?: Error; existingOffer?: any; aiResult?: any; loggingResult?: any } = {}) {
   const account = { id: '11111111-1111-1111-1111-111111111111', isActive: true };
   const product = overrides.product || {
     id: '22222222-2222-2222-2222-222222222222',
@@ -20,6 +20,14 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
   const pricing = overrides.pricing === undefined ? { basePrice: 199, currency: 'CZK', marginPercent: 20 } : overrides.pricing;
   const media = overrides.media === undefined ? [{ id: 'media-1' }] : overrides.media;
   const stock = overrides.stock === undefined ? 3 : overrides.stock;
+  const qualityReadiness = overrides.qualityReadiness === undefined ? {
+    productId: product.id,
+    sku: product.sku,
+    lifecycle: 'active',
+    sellable: true,
+    publishable: true,
+    issues: [],
+  } : overrides.qualityReadiness;
   const contentPreview = overrides.contentPreview === undefined ? {
     marketplace: 'aukro',
     label: 'Aukro',
@@ -68,6 +76,10 @@ function createHarness(overrides: { stock?: number; warehouseError?: Error; medi
     getProductPricing: async () => pricing,
     getProductMedia: async () => media,
     getProductContentPreview: async () => contentPreview,
+    getProductQualityReadiness: async () => {
+      if (overrides.qualityError) throw overrides.qualityError;
+      return qualityReadiness;
+    },
   };
   const warehouseClient = {
     getTotalAvailable: async () => {
@@ -136,6 +148,8 @@ async function run() {
   assert.equal(created.offer.description, 'Canonical Aukro plain text');
   assert.equal(created.offer.rawData.draft.sourceSnapshot.descriptionSource, 'catalog-content-preview');
   assert.equal(created.offer.rawData.draft.sourceSnapshot.contentPreview.source.sourceHash, 'hash-canonical-1');
+  assert.equal(created.offer.rawData.draft.sourceSnapshot.catalogQuality.policyId, 'catalog.product_quality.v1');
+  assert.equal(created.offer.rawData.draft.sourceSnapshot.catalogQuality.canActivate, true);
   assert.equal(createdHarness.getCreateCount(), 1);
 
   const existingOffer = { ...created.offer, id: 'offer-1' };
@@ -169,6 +183,47 @@ async function run() {
   assert.ok(blocked.blockers.includes('PRICE_POLICY_FAILED'));
   assert.ok(blocked.blockers.includes('MEDIA_READINESS_FAILED'));
   assert.ok(blocked.blockers.includes('AI_RISK_MISSING'));
+
+
+  const qualityBlockedHarness = createHarness({
+    qualityReadiness: {
+      productId: '22222222-2222-2222-2222-222222222222',
+      lifecycle: 'active',
+      issues: [
+        { code: 'missing_description', field: 'description', severity: 'blocking', message: 'Description is required.' },
+        { code: 'missing_ean', field: 'ean', severity: 'warning', message: 'EAN is optional.' },
+      ],
+    },
+  });
+  await assert.rejects(
+    () => qualityBlockedHarness.service.createFromCatalog({
+      accountId: qualityBlockedHarness.account.id,
+      productId: qualityBlockedHarness.product.id,
+    }),
+    (error: any) => {
+      const response = error.getResponse();
+      assert.equal(error.getStatus(), 400);
+      assert.deepEqual(response.blockers, ['missing_description']);
+      assert.equal(response.policyId, 'catalog.product_quality.v1');
+      assert.equal(qualityBlockedHarness.getCreateCount(), 0);
+      return true;
+    },
+  );
+
+  const qualityUnavailableHarness = createHarness({ qualityError: new Error('catalog quality unavailable') });
+  await assert.rejects(
+    () => qualityUnavailableHarness.service.createFromCatalog({
+      accountId: qualityUnavailableHarness.account.id,
+      productId: qualityUnavailableHarness.product.id,
+    }),
+    (error: any) => {
+      const response = error.getResponse();
+      assert.equal(error.getStatus(), 400);
+      assert.deepEqual(response.blockers, ['CATALOG_QUALITY_REVIEW_UNAVAILABLE']);
+      assert.equal(qualityUnavailableHarness.getCreateCount(), 0);
+      return true;
+    },
+  );
 
   const proposalHarness = createHarness({ existingOffer: created.offer });
   const proposalResponse = await proposalHarness.service.createAiProposal(created.offer.id, {
@@ -208,6 +263,25 @@ async function run() {
   assert.equal(replayed.action, 'reused');
   assert.equal(replayed.attempt.id, queued.attempt.id);
   assert.equal(replayed.queue.attempts.length, 1);
+
+
+  const qualityBlockedPublishHarness = createHarness({
+    existingOffer: approved.offer,
+    qualityReadiness: {
+      productId: created.offer.productId,
+      lifecycle: 'active',
+      issues: [{ code: 'missing_title', field: 'title', severity: 'blocking', message: 'Title is required.' }],
+    },
+  });
+  const qualityBlockedPublish = await qualityBlockedPublishHarness.service.enqueuePublish(created.offer.id, {
+    actorId: 'publisher:synthetic',
+    idempotencyKey: 'publish-quality-blocked-1',
+    rateLimitRemaining: 1,
+  });
+  assert.equal(qualityBlockedPublish.attempt.status, 'blocked');
+  assert.equal(qualityBlockedPublish.compliancePolicy.allowed, false);
+  assert.ok(qualityBlockedPublish.blockers.includes('CATALOG_VALIDATION_FAILED'));
+  assert.deepEqual(qualityBlockedPublish.attempt.policyEvidence.catalogValidated.blockers, ['missing_title']);
 
   const zeroStockPublishHarness = createHarness({ stock: 0, existingOffer: approved.offer });
   const zeroStockPublish = await zeroStockPublishHarness.service.enqueuePublish(created.offer.id, {

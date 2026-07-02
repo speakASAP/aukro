@@ -43,6 +43,9 @@ export interface PolicyEvidenceFlag {
   checkedAt?: string;
   source?: string;
   hint?: string;
+  policyId?: string;
+  blockers?: string[];
+  nextAction?: string;
 }
 
 export interface StockEvidence extends PolicyEvidenceFlag {

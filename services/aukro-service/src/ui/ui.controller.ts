@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { AuthResponse, AuthService, AuthUser, CatalogClientService, OrderClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
+import { AuthResponse, AuthService, AuthUser, CATALOG_PRODUCT_QUALITY_POLICY_ID, CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER, CatalogClientService, CatalogProductQualityIssue, CatalogProductReadiness, OrderClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 
 interface UiAuthRequest {
@@ -172,7 +172,9 @@ export class UiController {
     }
 
     const start = (page - 1) * limit;
-    const pagedItems = candidates.slice(start, start + limit);
+    const pagedItems = await Promise.all(
+      candidates.slice(start, start + limit).map((candidate) => this.withCatalogQualityCandidate(candidate, authorization)),
+    );
     return {
       items: pagedItems,
       total: candidates.length,
@@ -300,12 +302,14 @@ export class UiController {
   async publish(@Req() req: any, @Body() body: UiPublishRequest) {
     const user = req.user as AuthUser;
     const account = await this.resolveAukroAccountForUser(user, body.accountId);
-    await this.assertEffectiveCatalogProductAccess(req, body.productId);
+    const authorization = this.humanAuthorizationOrThrow(req);
+    await this.assertEffectiveCatalogProductAccess(req, body.productId, authorization);
 
     return this.offersService.createFromCatalog({
       accountId: account.id,
       productId: body.productId,
       requestedBy: user.email || user.id,
+      catalogAuthorization: authorization,
     });
   }
 
@@ -321,14 +325,16 @@ export class UiController {
     }
 
     const actorId = user.email || user.id;
+    const authorization = this.humanAuthorizationOrThrow(req);
     const results: any[] = [];
     for (const productId of productIds) {
       try {
-        await this.assertEffectiveCatalogProductAccess(req, productId);
+        await this.assertEffectiveCatalogProductAccess(req, productId, authorization);
         const draft = await this.offersService.createFromCatalog({
           accountId: account.id,
           productId,
           requestedBy: actorId,
+          catalogAuthorization: authorization,
         });
         const offerId = draft?.offer?.id;
         let publishIntent: any = null;
@@ -353,6 +359,7 @@ export class UiController {
           productId,
           success: false,
           error: error?.message || 'Produkt se nepodarilo zpracovat.',
+          blockers: this.errorBlockers(error),
         });
       }
     }
@@ -452,14 +459,14 @@ export class UiController {
     return account;
   }
 
-  private async assertEffectiveCatalogProductAccess(req: any, productId: string) {
+  private async assertEffectiveCatalogProductAccess(req: any, productId: string, authorization?: string) {
     const normalizedProductId = this.textOrNull(productId);
     if (!normalizedProductId) {
       throw new BadRequestException('Vyberte produkt.');
     }
     try {
       await this.catalogClient.getProductById(normalizedProductId, {
-        authorization: this.humanAuthorizationOrThrow(req),
+        authorization: authorization || this.humanAuthorizationOrThrow(req),
         catalogScope: 'effective',
       });
     } catch {
@@ -548,6 +555,75 @@ export class UiController {
       resaleMutationHint: sourceSummary.resaleMutationHint,
       blockers: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
     };
+  }
+
+
+  private async withCatalogQualityCandidate(candidate: any, authorization: string) {
+    const productId = this.textOrNull(candidate?.id);
+    if (!productId) return candidate;
+
+    try {
+      const readiness = await this.catalogClient.getProductQualityReadiness(productId, { authorization });
+      const quality = this.publicCatalogQuality(productId, readiness);
+      return {
+        ...candidate,
+        catalogQualityPolicyId: quality.policyId,
+        catalogQualityCanActivate: quality.canActivate,
+        catalogQualityBlockers: quality.blockingIssueCodes,
+        catalogQualityNextAction: quality.nextAction,
+        blockers: Array.from(new Set([...(Array.isArray(candidate.blockers) ? candidate.blockers : []), ...quality.blockingIssueCodes])),
+        selectable: quality.canActivate,
+      };
+    } catch {
+      const blockers = [CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER];
+      return {
+        ...candidate,
+        catalogQualityPolicyId: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+        catalogQualityCanActivate: false,
+        catalogQualityBlockers: blockers,
+        catalogQualityNextAction: 'retry_catalog_product_quality_review',
+        blockers: Array.from(new Set([...(Array.isArray(candidate.blockers) ? candidate.blockers : []), ...blockers])),
+        selectable: false,
+      };
+    }
+  }
+
+  private publicCatalogQuality(productId: string, readiness: CatalogProductReadiness) {
+    const issues = this.catalogQualityIssues(readiness?.issues);
+    const blockingIssues = issues.filter((issue) => this.isMandatoryCatalogQualityBlocker(issue));
+    const blockingIssueCodes = Array.from(new Set(blockingIssues.map((issue) => issue.code)));
+    return {
+      policyId: CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      productId: readiness?.productId || productId,
+      canActivate: blockingIssueCodes.length === 0,
+      blockingIssues,
+      blockingIssueCodes,
+      nextAction: blockingIssueCodes.length ? `resolve_catalog_quality_blockers:${blockingIssueCodes.join(',')}` : 'ready_for_activation',
+    };
+  }
+
+  private catalogQualityIssues(issues: CatalogProductQualityIssue[] | undefined): CatalogProductQualityIssue[] {
+    if (!Array.isArray(issues)) return [];
+    return issues
+      .map((issue) => ({
+        code: this.textOrNull(issue?.code) || 'unknown_catalog_quality_issue',
+        field: this.textOrNull(issue?.field) || undefined,
+        severity: this.textOrNull(issue?.severity) || 'warning',
+        message: this.textOrNull(issue?.message) || undefined,
+        source: this.textOrNull(issue?.source) || CATALOG_PRODUCT_QUALITY_POLICY_ID,
+      }))
+      .filter((issue) => Boolean(issue.code));
+  }
+
+  private isMandatoryCatalogQualityBlocker(issue: CatalogProductQualityIssue): boolean {
+    if (!issue?.code || issue.severity !== 'blocking') return false;
+    return !['draft_product', 'needs_review', 'inactive_product'].includes(issue.code);
+  }
+
+  private errorBlockers(error: any): string[] {
+    const response = typeof error?.getResponse === 'function' ? error.getResponse() : error?.response;
+    const blockers = response?.blockers || error?.blockers;
+    return Array.isArray(blockers) ? blockers.map((item) => String(item)).filter(Boolean) : [];
   }
 
   private catalogSourceSummary(product: any, user?: AuthUser) {
@@ -1265,6 +1341,7 @@ export class UiController {
     button.compact-product-card { cursor: pointer; }
     button.compact-product-card:hover { border-color: var(--aukro-orange); box-shadow: 0 4px 14px rgba(255, 90, 0, .18); }
     .compact-product-card.is-selected { border-color: var(--aukro-orange); box-shadow: 0 4px 14px rgba(255, 90, 0, .2); }
+    .compact-product-card.is-disabled { opacity: .72; border-color: #f0b8a8; background: #fff8f5; }
     .product-select {
       position: absolute;
       top: 8px;
@@ -1765,8 +1842,10 @@ export class UiController {
       const response = await fetch(url, { ...options, headers });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const error = new Error(data.message || data.error?.message || 'Požadavek selhal');
+        const message = Array.isArray(data.message) ? data.message.join(', ') : (data.message || data.error?.message || 'Požadavek selhal');
+        const error = new Error(message);
         error.status = response.status;
+        error.blockers = Array.isArray(data.blockers) ? data.blockers : (Array.isArray(data.error?.blockers) ? data.error.blockers : []);
         throw error;
       }
       return data;
@@ -1945,6 +2024,7 @@ export class UiController {
       const sourceQuery = '&catalogSources=' + encodeURIComponent(sources.join(','));
       const result = await api('/aukro/ui/catalog/products?limit=' + state.catalogLimit + '&page=' + state.catalogPage + sourceQuery + (search ? '&search=' + encodeURIComponent(search) : ''));
       const items = result.items || [];
+      items.filter((item) => item.catalogQualityCanActivate === false).forEach((item) => state.selectedProductIds.delete(String(item.id)));
       state.catalogItems = items;
       $('catalogMessage').className = result.scanTruncated ? 'message warn' : 'message';
       $('catalogMessage').textContent = items.length
@@ -1997,7 +2077,15 @@ export class UiController {
         title: item.title || item.name || 'Produkt bez názvu',
         imageUrl: imageUrlFor(item),
         meta: item.draftStatus ? 'draft ' + item.draftStatus : 'nepublikováno',
-        tags: [item.catalogScope ? 'scope ' + item.catalogScope : '', item.sourceLabel || '', item.accessLabel || ''].filter(Boolean),
+        tags: [
+          item.catalogScope ? 'scope ' + item.catalogScope : '',
+          item.sourceLabel || '',
+          item.accessLabel || '',
+          item.catalogQualityCanActivate === false ? 'quality blocked' : 'quality ok',
+          ...((item.catalogQualityBlockers || []).slice(0, 2).map((blocker) => 'blocker ' + blocker)),
+        ].filter(Boolean),
+        selectable: item.selectable !== false,
+        catalogQualityBlockers: item.catalogQualityBlockers || [],
         resaleEnabled: item.resaleEnabled === true,
         resaleMutationAllowed: item.resaleMutationAllowed !== false,
         resaleMutationHint: item.resaleMutationHint || '',
@@ -2011,13 +2099,16 @@ export class UiController {
       const tags = Array.isArray(item.tags) && item.tags.length ? '<span class="compact-product-tags">' + item.tags.map((tag) => '<span class="compact-product-tag">' + escapeHtml(tag) + '</span>').join('') + '</span>' : '';
       const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>' + (item.meta ? '<span class="compact-product-meta">' + escapeHtml(item.meta) + '</span>' : '') + tags;
       if (publishable) {
-        const checked = state.selectedProductIds.has(String(item.id)) ? ' checked' : '';
+        const selectable = item.selectable !== false;
+        const checked = selectable && state.selectedProductIds.has(String(item.id)) ? ' checked' : '';
         const resaleChecked = item.resaleEnabled ? ' checked' : '';
         const resaleDisabled = item.resaleMutationAllowed === false ? ' disabled' : '';
         const resaleHint = item.resaleMutationHint ? ' title="' + escapeHtml(item.resaleMutationHint) + '"' : '';
         const resaleClass = 'resale-toggle' + (item.resaleEnabled ? ' is-on' : '') + (item.resaleMutationAllowed === false ? ' is-disabled' : '');
         const resaleToggle = '<label class="' + resaleClass + '"' + resaleHint + '><input type="checkbox" data-resale-toggle="' + escapeHtml(item.id) + '"' + resaleChecked + resaleDisabled + ' aria-label="Resale produkt" /> Resale</label>';
-        return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + '"><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + ' aria-label="Vybrat produkt" />' + body + resaleToggle + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
+        const selectDisabled = selectable ? '' : ' disabled';
+        const blockedTitle = !selectable && item.catalogQualityBlockers?.length ? ' title="Catalog blokery: ' + escapeHtml(item.catalogQualityBlockers.join(', ')) + '"' : '';
+        return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + (!selectable ? ' is-disabled' : '') + '"' + blockedTitle + '><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + selectDisabled + ' aria-label="Vybrat produkt" />' + body + resaleToggle + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
       }
       return '<article class="compact-product-card">' + body + '</article>';
     };
@@ -2132,7 +2223,7 @@ export class UiController {
         $('catalogMessage').textContent = preview.success ? 'Preview je pripravene pred vytvorenim draftu.' : 'Canonical preview neni dostupne; zobrazen je katalogovy fallback.';
       } catch (error) {
         $('catalogMessage').className = 'message warn';
-        $('catalogMessage').textContent = error.message;
+        $('catalogMessage').textContent = error.message + (error.blockers?.length ? ' Blokery: ' + error.blockers.join(', ') : '');
       } finally { button.disabled = false; }
     };
     const setProductResaleEnabled = async (productId, resaleEnabled, input) => {
@@ -2152,6 +2243,12 @@ export class UiController {
       }
     };
     const publishProduct = async (productId, button) => {
+      const candidate = (state.catalogItems || []).find((item) => String(item.id) === String(productId));
+      if (candidate && candidate.catalogQualityCanActivate === false) {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = 'Catalog kvalita blokuje Aukro draft: ' + ((candidate.catalogQualityBlockers || []).join(', ') || 'neznamy bloker');
+        return;
+      }
       button.disabled = true;
       $('catalogMessage').textContent = 'Vytvářím Aukro draft...';
       try {
@@ -2166,7 +2263,7 @@ export class UiController {
         await loadOfferProducts();
       } catch (error) {
         $('catalogMessage').className = 'message warn';
-        $('catalogMessage').textContent = error.message;
+        $('catalogMessage').textContent = error.message + (error.blockers?.length ? ' Blokery: ' + error.blockers.join(', ') : '');
       } finally { button.disabled = false; }
     };
     const bulkPublishSelected = async () => {

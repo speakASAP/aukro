@@ -79,7 +79,7 @@ Catalog Goal 25 added marketplace-field manual/stale propagation metadata. Aukro
 
 - `./scripts/deploy.sh`: PASS, built and pushed `localhost:5000/aukro-service:400ee1f`.
 - `kubectl rollout status deployment/aukro-service -n statex-apps`: PASS through deploy script.
-- `kubectl get deployment aukro-service -n statex-apps -o wide`: `1/1` on `localhost:5000/aukro-service:400ee1f`.
+- `kubectl get deployment aukro-service -n statex-apps -o wide`: ready replicas one of one on `localhost:5000/aukro-service:400ee1f`.
 - `curl -i -sS -m 15 https://aukro.alfares.cz/health`: HTTP 200, `{"status":"ok","service":"aukro-service"}`.
 - `curl -i -sS -m 15 https://aukro.alfares.cz/`: HTTP 200, root UI served.
 - `curl -sS -m 15 https://aukro.alfares.cz/`: deployed HTML contains `Manual override`, `Source changed`, `Review required`, and `Catalog source changed` markers.

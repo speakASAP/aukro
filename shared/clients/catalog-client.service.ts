@@ -3,6 +3,38 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
 
+
+export const CATALOG_PRODUCT_QUALITY_POLICY_ID = 'catalog.product_quality.v1';
+export const CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER = 'CATALOG_QUALITY_REVIEW_UNAVAILABLE';
+export const CATALOG_PRODUCT_QUALITY_MANDATORY_BLOCKERS = [
+  'missing_sku',
+  'duplicate_sku',
+  'missing_title',
+  'missing_description',
+  'missing_current_price',
+  'missing_image',
+  'placeholder_image_only',
+  'archived_product',
+] as const;
+
+export interface CatalogProductQualityIssue {
+  code: string;
+  message?: string;
+  severity?: string;
+  field?: string;
+  source?: string;
+}
+
+export interface CatalogProductReadiness {
+  productId: string;
+  sku?: string;
+  lifecycle?: string;
+  sellable?: boolean;
+  publishable?: boolean;
+  issues?: CatalogProductQualityIssue[];
+  checks?: Record<string, unknown>;
+}
+
 export interface CatalogContentPreviewSource {
   canonicalDocumentVersion?: string;
   legacyDescriptionFallback?: boolean;
@@ -121,7 +153,7 @@ export class CatalogClientService {
       const params = new URLSearchParams();
       if (options.catalogScope) params.append('catalogScope', options.catalogScope);
       const query = params.toString();
-      const requestOptions = options.authorization ? this.userRequestOptions(options.authorization) : undefined;
+      const requestOptions = options.authorization ? this.userRequestOptions(options.authorization) : this.requestOptions();
       const response = await firstValueFrom(
         this.httpService.get(
           `${this.baseUrl}/api/products/${encodeURIComponent(productId)}${query ? `?${query}` : ''}`,
@@ -233,6 +265,25 @@ export class CatalogClientService {
       const catalogMessage = response?.data?.error?.message || response?.data?.message || errorMessage;
       this.logger.error(`Failed to update product ${productId}: ${errorMessage}`, errorStack, 'CatalogClient');
       throw new HttpException(`Failed to update product: ${catalogMessage}`, status);
+    }
+  }
+
+
+  /**
+   * Get Catalog-owned product quality/readiness diagnostics for one product.
+   */
+  async getProductQualityReadiness(productId: string, options: CatalogProductRequestOptions = {}): Promise<CatalogProductReadiness> {
+    try {
+      const requestOptions = options.authorization ? this.userRequestOptions(options.authorization) : this.requestOptions();
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/products/${encodeURIComponent(productId)}/readiness`, requestOptions)
+      );
+      return (response.data?.data || response.data) as CatalogProductReadiness;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get product quality readiness ${productId}: ${errorMessage}`, errorStack, 'CatalogClient');
+      throw new HttpException('Catalog product quality readiness unavailable', HttpStatus.BAD_GATEWAY);
     }
   }
 
