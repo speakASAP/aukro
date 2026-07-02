@@ -34,7 +34,7 @@ data:
   GATEWAY_TIMEOUT: "30000"
   HTTP_TIMEOUT: "30000"
   CORS_ORIGIN: "https://aukro.alfares.cz"
-  RABBITMQ_URL: "amqp://guest:guest@statex_rabbitmq:5672"
+  RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
   CATALOG_EVENTS_EXCHANGE: "catalog.events"
   DB_HOST: "db-server-postgres"
   DB_PORT: "5432"
