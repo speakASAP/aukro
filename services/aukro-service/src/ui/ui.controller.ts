@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthResponse, AuthService, AuthUser, CatalogClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 
@@ -17,6 +17,10 @@ interface UiPublishRequest {
 interface UiBulkPublishRequest {
   productIds: string[];
   accountId?: string;
+}
+
+interface UiResaleEnabledRequest {
+  resaleEnabled: boolean;
 }
 
 @Controller()
@@ -159,7 +163,7 @@ export class UiController {
       scanned += items.length;
       for (const item of items) {
         if (!item?.id || publishedProductIds.has(String(item.id))) continue;
-        candidates.push(this.publicCatalogCandidate(item, offerByProductId.get(String(item.id))));
+        candidates.push(this.publicCatalogCandidate(item, offerByProductId.get(String(item.id)), user));
       }
       if (!items.length || items.length < scanLimit || scanned >= totalCatalog) break;
       scanPage++;
@@ -245,6 +249,48 @@ export class UiController {
       overridesApplied: false,
       warnings: ['CATALOG_CONTENT_PREVIEW_UNAVAILABLE'],
     };
+  }
+
+  @Post('ui/catalog/products/:productId/resale-enabled')
+  @UseGuards(JwtAuthGuard)
+  async setCatalogProductResaleEnabled(@Req() req: any, @Param('productId') productId: string, @Body() body: UiResaleEnabledRequest) {
+    const user = req.user as AuthUser;
+    const authorization = this.humanAuthorizationOrThrow(req);
+    const normalizedProductId = this.textOrNull(productId);
+    if (!normalizedProductId) {
+      throw new BadRequestException('Vyberte produkt.');
+    }
+
+    const resaleEnabled = this.booleanOrNull(body?.resaleEnabled);
+    if (resaleEnabled === null) {
+      throw new BadRequestException('resaleEnabled musi byt boolean.');
+    }
+
+    const product = await this.catalogClient.getProductById(normalizedProductId, { authorization, catalogScope: 'effective' });
+    const sourceSummary = this.catalogSourceSummary(product, user);
+    if (sourceSummary.ownedByUser === false) {
+      throw new ForbiddenException('Resale lze menit jen u vlastnich Catalog produktu. Tento zdroj je v Aukro kabinetu read-only.');
+    }
+
+    try {
+      const updatedProduct = await this.catalogClient.updateProduct(normalizedProductId, { resaleEnabled }, { authorization });
+      const publicProduct = this.publicCatalogCandidate(updatedProduct || { ...product, resaleEnabled }, undefined, user);
+
+      return {
+        success: true,
+        resaleEnabled,
+        product: publicProduct,
+      };
+    } catch (error: unknown) {
+      const status = error instanceof HttpException ? error.getStatus() : 500;
+      if (status === 401 || status === 403) {
+        throw new ForbiddenException('Catalog odmitl zmenu resale. Zmenu muze ulozit pouze vlastnik produktu prihlaseny svym Bearer tokenem.');
+      }
+      if (status === 400) {
+        throw new BadRequestException(error instanceof Error ? error.message : 'Catalog odmitl resale zmenu.');
+      }
+      throw error;
+    }
   }
 
   @Post('ui/publish')
@@ -456,14 +502,14 @@ export class UiController {
     };
   }
 
-  private publicCatalogCandidate(product: any, offer?: any) {
+  private publicCatalogCandidate(product: any, offer?: any, user?: AuthUser) {
     const rawData = this.asRecord(offer?.rawData);
     const draft = this.asRecord(rawData.draft);
     const publishQueue = this.asRecord(rawData.publishQueue);
     const title = this.textOrNull(product?.title ?? product?.name) || 'Produkt bez názvu';
     const imageUrl = this.extractImageUrl(product);
     const publishedOnAukro = Boolean(offer?.isActive && offer?.aukroOfferId);
-    const sourceSummary = this.catalogSourceSummary(product);
+    const sourceSummary = this.catalogSourceSummary(product, user);
 
     return {
       id: product.id,
@@ -480,11 +526,15 @@ export class UiController {
       sourceLabel: sourceSummary.sourceLabel,
       accessLabel: sourceSummary.accessLabel,
       resaleEnabled: sourceSummary.resaleEnabled,
+      resaleMutationAllowed: sourceSummary.ownedByUser !== false,
+      resaleOwnershipKnown: sourceSummary.ownedByUser !== null,
+      resaleOwnedByUser: sourceSummary.ownedByUser,
+      resaleMutationHint: sourceSummary.resaleMutationHint,
       blockers: Array.isArray(draft.policyReasonCodes) ? draft.policyReasonCodes : [],
     };
   }
 
-  private catalogSourceSummary(product: any) {
+  private catalogSourceSummary(product: any, user?: AuthUser) {
     const source = this.asRecord(product?.source);
     const catalogSource = this.asRecord(product?.catalogSource);
     const settings = this.asRecord(product?.sourceSettings ?? product?.catalogSettings ?? source.settings ?? catalogSource.settings);
@@ -498,14 +548,80 @@ export class UiController {
       || ownerType === 'alfares'
       || ownerName?.toLowerCase() === 'alfares';
     const resaleEnabled = this.booleanOrNull(product?.resaleEnabled ?? settings.resaleEnabled ?? access.resaleEnabled ?? source.resaleEnabled ?? catalogSource.resaleEnabled);
+    const ownedByUser = this.catalogProductOwnedByUser(product, user);
     const sourceLabel = isAlfares
       ? 'Alfares source'
-      : (ownerName ? `Seller source: ${ownerName}` : 'Seller/community source');
+      : (ownedByUser === true ? 'Vlastni Catalog produkt' : (ownerName ? `Seller source: ${ownerName}` : 'Seller/community source'));
     const accessLabel = isAlfares
       ? 'Catalog settings opt-in'
       : (resaleEnabled === true ? 'Community-visible resale' : 'Seller-only');
+    const resaleMutationHint = ownedByUser === false
+      ? 'Pouze vlastnik produktu muze menit resale nastaveni.'
+      : (ownedByUser === true ? 'Resale nastavuje vlastnik produktu.' : 'Vlastnictvi overi Catalog pri ulozeni.');
 
-    return { sourceLabel, accessLabel, resaleEnabled };
+    return { sourceLabel, accessLabel, resaleEnabled, ownedByUser, resaleMutationHint };
+  }
+
+  private catalogProductOwnedByUser(product: any, user?: AuthUser): boolean | null {
+    if (!user) return null;
+
+    const source = this.asRecord(product?.source);
+    const catalogSource = this.asRecord(product?.catalogSource);
+    const settings = this.asRecord(product?.sourceSettings ?? product?.catalogSettings ?? source.settings ?? catalogSource.settings);
+    const access = this.asRecord(product?.access ?? product?.catalogAccess ?? settings.access);
+    const seller = this.asRecord(product?.seller ?? source.seller ?? catalogSource.seller);
+    const explicitOwner = this.booleanOrNull(
+      product?.ownedByCurrentUser ??
+      product?.isOwnedByCurrentUser ??
+      product?.isOwner ??
+      access.ownedByCurrentUser ??
+      access.isOwner ??
+      access.canUpdate ??
+      access.canEdit,
+    );
+    if (explicitOwner !== null) return explicitOwner;
+
+    const userIds = new Set([user.id, user.email].map((item) => this.textOrNull(item)?.toLowerCase()).filter(Boolean) as string[]);
+    const ownerIds = [
+      product?.ownerUserId,
+      product?.owner_user_id,
+      product?.ownerId,
+      product?.userId,
+      product?.createdByUserId,
+      product?.createdById,
+      source.ownerUserId,
+      source.owner_user_id,
+      source.ownerId,
+      catalogSource.ownerUserId,
+      catalogSource.owner_user_id,
+      catalogSource.ownerId,
+      seller.userId,
+      seller.id,
+    ].map((item) => this.textOrNull(item)?.toLowerCase()).filter(Boolean) as string[];
+    if (ownerIds.length) {
+      return ownerIds.some((ownerId) => userIds.has(ownerId));
+    }
+
+    const ownerEmails = [
+      product?.ownerEmail,
+      product?.owner_email,
+      source.ownerEmail,
+      source.owner_email,
+      catalogSource.ownerEmail,
+      catalogSource.owner_email,
+      seller.email,
+    ].map((item) => this.textOrNull(item)?.toLowerCase()).filter(Boolean) as string[];
+    if (ownerEmails.length) {
+      return ownerEmails.some((email) => userIds.has(email));
+    }
+
+    const fallbackSourceType = (this.textOrNull(product?.sourceType ?? source.type ?? catalogSource.type ?? settings.sourceType) || '').toLowerCase();
+    const fallbackOwnerType = (this.textOrNull(product?.ownerType ?? source.ownerType ?? catalogSource.ownerType ?? seller.type) || '').toLowerCase();
+    if (['own', 'mine', 'self'].includes(fallbackSourceType) || ['own', 'mine', 'self'].includes(fallbackOwnerType)) return true;
+    if (['alfares', 'company', 'community', 'shared'].includes(fallbackSourceType) || ['alfares', 'company', 'community', 'shared'].includes(fallbackOwnerType)) return false;
+    if (product?.isAlfaresProduct === true) return false;
+
+    return null;
   }
 
   private publicOrder(order: any) {
@@ -1029,6 +1145,23 @@ export class UiController {
       background: #fff;
       box-shadow: var(--shadow);
     }
+    .resale-toggle {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 8px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .resale-toggle input { width: 16px; height: 16px; accent-color: var(--aukro-orange); }
+    .resale-toggle.is-on { border-color: var(--ok); color: var(--ok); background: #f1fff8; }
+    .resale-toggle.is-disabled { color: var(--muted); cursor: not-allowed; opacity: .66; }
     .compact-product-media {
       min-height: 0;
       border-radius: 6px;
@@ -1652,6 +1785,7 @@ export class UiController {
       });
       updateSelectedCount();
       document.querySelectorAll('[data-preview]').forEach((button) => button.addEventListener('click', () => previewProduct(button.dataset.preview, button)));
+      document.querySelectorAll('[data-resale-toggle]').forEach((input) => input.addEventListener('change', () => setProductResaleEnabled(input.dataset.resaleToggle, input.checked, input)));
       document.querySelectorAll('[data-select-product]').forEach((input) => input.addEventListener('change', () => {
         if (input.checked) state.selectedProductIds.add(input.dataset.selectProduct);
         else state.selectedProductIds.delete(input.dataset.selectProduct);
@@ -1689,6 +1823,9 @@ export class UiController {
         imageUrl: imageUrlFor(item),
         meta: item.draftStatus ? 'draft ' + item.draftStatus : 'nepublikováno',
         tags: [item.catalogScope ? 'scope ' + item.catalogScope : '', item.sourceLabel || '', item.accessLabel || ''].filter(Boolean),
+        resaleEnabled: item.resaleEnabled === true,
+        resaleMutationAllowed: item.resaleMutationAllowed !== false,
+        resaleMutationHint: item.resaleMutationHint || '',
       }, true);
     };
     const compactProductCard = (item, publishable) => {
@@ -1700,7 +1837,12 @@ export class UiController {
       const body = media + '<span class="compact-product-title">' + escapeHtml(title) + '</span>' + (item.meta ? '<span class="compact-product-meta">' + escapeHtml(item.meta) + '</span>' : '') + tags;
       if (publishable) {
         const checked = state.selectedProductIds.has(String(item.id)) ? ' checked' : '';
-        return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + '"><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + ' aria-label="Vybrat produkt" />' + body + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
+        const resaleChecked = item.resaleEnabled ? ' checked' : '';
+        const resaleDisabled = item.resaleMutationAllowed === false ? ' disabled' : '';
+        const resaleHint = item.resaleMutationHint ? ' title="' + escapeHtml(item.resaleMutationHint) + '"' : '';
+        const resaleClass = 'resale-toggle' + (item.resaleEnabled ? ' is-on' : '') + (item.resaleMutationAllowed === false ? ' is-disabled' : '');
+        const resaleToggle = '<label class="' + resaleClass + '"' + resaleHint + '><input type="checkbox" data-resale-toggle="' + escapeHtml(item.id) + '"' + resaleChecked + resaleDisabled + ' aria-label="Resale produkt" /> Resale</label>';
+        return '<article class="compact-product-card' + (checked ? ' is-selected' : '') + '"><input class="product-select" type="checkbox" data-select-product="' + escapeHtml(item.id) + '"' + checked + ' aria-label="Vybrat produkt" />' + body + resaleToggle + '<button class="card-preview-button" type="button" data-preview="' + escapeHtml(item.id) + '">Preview</button></article>';
       }
       return '<article class="compact-product-card">' + body + '</article>';
     };
@@ -1771,6 +1913,22 @@ export class UiController {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message;
       } finally { button.disabled = false; }
+    };
+    const setProductResaleEnabled = async (productId, resaleEnabled, input) => {
+      input.disabled = true;
+      $('catalogMessage').className = 'message';
+      $('catalogMessage').textContent = resaleEnabled ? 'Zapinam resale v Catalogu...' : 'Vypinam resale v Catalogu...';
+      try {
+        await api('/aukro/ui/catalog/products/' + encodeURIComponent(productId) + '/resale-enabled', { method: 'POST', body: JSON.stringify({ resaleEnabled }) });
+        $('catalogMessage').className = 'message ok';
+        $('catalogMessage').textContent = resaleEnabled ? 'Resale je zapnute pro tento Catalog produkt.' : 'Resale je vypnute pro tento Catalog produkt.';
+        await loadProducts();
+      } catch (error) {
+        input.checked = !resaleEnabled;
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = error.message;
+        input.disabled = false;
+      }
     };
     const publishProduct = async (productId, button) => {
       button.disabled = true;

@@ -1,0 +1,109 @@
+process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://logging-microservice:3209';
+
+const { strict: assert } = require('assert');
+const { UiController } = require('./ui.controller');
+
+function createController(centralOrdersById: Record<string, any>) {
+  const authService = {};
+  const catalogClient = {};
+  const offersService = {};
+  const orderClient = {
+    getOrderReadModel: async (orderId: string) => centralOrdersById[orderId] || null,
+  };
+  const prisma = {};
+  return new UiController(authService as any, catalogClient as any, offersService as any, orderClient as any, prisma as any) as any;
+}
+
+async function run() {
+  const controller = createController({
+    'central-order-1': {
+      id: 'central-order-1',
+      status: 'paid',
+      lifecycleStage: 'paid_not_delivered',
+      paymentStatus: 'paid',
+      fulfillmentStatus: 'reserved',
+      deliveryStatus: 'not_started',
+    },
+  });
+
+  const rawItem = {
+    title: 'Sold catalog item',
+    quantity: 2,
+  };
+  const localForwardedOrder = {
+    id: 'local-order-1',
+    accountId: 'account-1',
+    aukroOrderId: 'aukro-order-1',
+    orderId: 'central-order-1',
+    status: 'pending',
+    forwarded: true,
+    total: 299,
+    currency: 'CZK',
+    createdAt: new Date('2026-07-02T10:00:00.000Z'),
+    rawData: {
+      title: 'Local Aukro title',
+      items: [rawItem],
+    },
+  };
+  const localMissingIdOrder = {
+    ...localForwardedOrder,
+    id: 'local-order-2',
+    aukroOrderId: 'aukro-order-2',
+    orderId: null,
+    forwarded: false,
+    status: 'created',
+  };
+  const localUnavailableOrder = {
+    ...localForwardedOrder,
+    id: 'local-order-3',
+    aukroOrderId: 'aukro-order-3',
+    orderId: 'central-order-404',
+  };
+
+  const hydrated = await controller.hydrateOrdersWithCentralReadModel([
+    localForwardedOrder,
+    localMissingIdOrder,
+    localUnavailableOrder,
+  ]);
+
+  const publicForwarded = controller.publicOrder(hydrated[0]);
+  assert.equal(publicForwarded.id, 'local-order-1');
+  assert.equal(publicForwarded.orderId, 'central-order-1');
+  assert.equal(publicForwarded.centralOrderId, 'central-order-1');
+  assert.equal(publicForwarded.localStatus, 'pending');
+  assert.equal(publicForwarded.status, 'paid');
+  assert.equal(publicForwarded.lifecycleStage, 'paid_not_delivered');
+  assert.equal(publicForwarded.lifecycleLabel, 'zaplaceno / čeká na doručení');
+  assert.equal(publicForwarded.paymentStatus, 'paid');
+  assert.equal(publicForwarded.fulfillmentStatus, 'reserved');
+  assert.equal(publicForwarded.deliveryStatus, 'not_started');
+  assert.equal(publicForwarded.ordersReadStatus, 'available');
+  assert.equal(publicForwarded.stale, false);
+  assert.equal(publicForwarded.items.length, 1);
+
+  const publicMissingId = controller.publicOrder(hydrated[1]);
+  assert.equal(publicMissingId.status, 'unknown');
+  assert.equal(publicMissingId.lifecycleStage, 'unknown');
+  assert.equal(publicMissingId.ordersReadStatus, 'missing_order_id');
+  assert.equal(publicMissingId.statusMessage, 'chybí central Orders ID');
+  assert.equal(publicMissingId.stale, true);
+  assert.equal(publicMissingId.forwarded, false);
+
+  const publicUnavailable = controller.publicOrder(hydrated[2]);
+  assert.equal(publicUnavailable.status, 'unknown');
+  assert.equal(publicUnavailable.lifecycleStage, 'unknown');
+  assert.equal(publicUnavailable.ordersReadStatus, 'unavailable');
+  assert.equal(publicUnavailable.statusMessage, 'Orders stav je unknown/stale');
+  assert.equal(publicUnavailable.stale, true);
+
+  const summary = controller.dashboardSummary([], hydrated);
+  assert.equal(summary.ordersTotal, 3);
+  assert.equal(summary.unforwardedOrders, 1);
+  assert.equal(summary.ordersWithCentralStatus, 1);
+  assert.equal(summary.staleOrders, 2);
+}
+
+run().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

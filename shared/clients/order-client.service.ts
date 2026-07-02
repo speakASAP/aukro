@@ -34,6 +34,19 @@ interface CreateCentralOrderRequest {
   orderedAt?: Date;
 }
 
+export interface CentralOrderReadModel {
+  [key: string]: any;
+  id?: string;
+  status?: string;
+  lifecycleStage?: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  deliveryStatus?: string;
+  externalOrderId?: string;
+  channel?: string;
+  channelAccountId?: string;
+}
+
 /**
  * API client for orders-microservice.
  * Sends the Orders create contract idempotency fields so callers can retry safely.
@@ -73,6 +86,29 @@ export class OrderClientService {
       const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error('Failed to create order in orders-microservice: ' + message, stack, 'OrderClient');
       throw new HttpException('Failed to create order: ' + message, status || HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  async getOrderReadModel(orderId: string): Promise<CentralOrderReadModel | null> {
+    const normalizedOrderId = orderId?.trim();
+    if (!normalizedOrderId) return null;
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(this.baseUrl + '/api/orders/' + encodeURIComponent(normalizedOrderId), this.createOrderRequestOptions()),
+      );
+      const data = response.data?.data ?? response.data;
+      return this.asCentralOrderReadModel(data);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const message = status
+        ? 'HTTP_' + status
+        : error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn('Central order read unavailable: ' + message, {
+        context: 'OrderClient',
+        orderId: normalizedOrderId,
+      });
+      return null;
     }
   }
 
@@ -128,6 +164,11 @@ export class OrderClientService {
     if (missingWarehouseId) {
       throw new HttpException('ORDER_FORWARDING_WAREHOUSE_ID_MISSING', HttpStatus.BAD_REQUEST);
     }
+  }
+
+  private asCentralOrderReadModel(data: any): CentralOrderReadModel | null {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    return data as CentralOrderReadModel;
   }
 
   private normalizeChannelAccountId(channelAccountId?: string): string {

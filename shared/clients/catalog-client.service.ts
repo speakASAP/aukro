@@ -218,17 +218,21 @@ export class CatalogClientService {
   /**
    * Update product in catalog
    */
-  async updateProduct(productId: string, productData: any): Promise<any> {
+  async updateProduct(productId: string, productData: any, options: CatalogProductRequestOptions = {}): Promise<any> {
     try {
+      const requestOptions = options.authorization ? this.userRequestOptions(options.authorization) : this.requestOptions();
       const response = await firstValueFrom(
-        this.httpService.put(`${this.baseUrl}/api/products/${productId}`, productData)
+        this.httpService.put(`${this.baseUrl}/api/products/${encodeURIComponent(productId)}`, productData, requestOptions)
       );
       return response.data.data;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
+      const response = (error as any)?.response;
+      const status = Number(response?.status) || HttpStatus.BAD_REQUEST;
+      const catalogMessage = response?.data?.error?.message || response?.data?.message || errorMessage;
       this.logger.error(`Failed to update product ${productId}: ${errorMessage}`, errorStack, 'CatalogClient');
-      throw new HttpException(`Failed to update product: ${errorMessage}`, HttpStatus.BAD_REQUEST);
+      throw new HttpException(`Failed to update product: ${catalogMessage}`, status);
     }
   }
 
