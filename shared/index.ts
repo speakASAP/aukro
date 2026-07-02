@@ -27,3 +27,4 @@ export * from './clients/suppliers-client.service';
 export * from './clients/logging-client.service';
 export * from './rabbitmq/rabbitmq.module';
 export * from './rabbitmq/stock-events.subscriber';
+export * from './rabbitmq/catalog-product-events.subscriber';
