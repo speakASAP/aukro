@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start:dev": "concurrently -n \"API-GW,AUKRO\" -c \"blue,yellow\" \"cd services/api-gateway && npm run start:dev\" \"cd services/aukro-service && npm run start:dev\"",
-    "reconcile:availability": "npm --prefix services/aukro-service run reconcile:availability --"
+    "reconcile:availability": "npm --prefix services/aukro-service run reconcile:availability --",
+    "verify:orders-lifecycle-ui": "node scripts/verify-orders-lifecycle-ui.js"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.1",
