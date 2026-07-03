@@ -24,6 +24,13 @@ import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
+export const AUKRO_GLOBAL_PREFIX_EXCLUDES = [
+  { path: '', method: RequestMethod.GET },
+  { path: 'health', method: RequestMethod.GET },
+  { path: 'dashboard', method: RequestMethod.GET },
+  { path: 'internal/aukro/order-affinity/replay-candidates', method: RequestMethod.GET },
+];
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
@@ -37,11 +44,7 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('aukro', {
-    exclude: [
-      { path: '', method: RequestMethod.GET },
-      { path: 'health', method: RequestMethod.GET },
-      { path: 'dashboard', method: RequestMethod.GET },
-    ],
+    exclude: AUKRO_GLOBAL_PREFIX_EXCLUDES,
   });
 
   const port = configService.get<string>('AUKRO_SERVICE_PORT') || '3700';
@@ -49,5 +52,7 @@ async function bootstrap() {
   console.log(`Aukro service listening on http://localhost:${port}`);
 }
 
-bootstrap();
+if (require.main === module) {
+  bootstrap();
+}
 
