@@ -1948,11 +1948,20 @@ export class UiController {
       }, state.dashboardPollMs);
     };
     const showClient = async () => {
-      await provisionCatalog();
+      let catalogProvisionError = null;
+      try {
+        await provisionCatalog();
+      } catch (error) {
+        catalogProvisionError = error;
+      }
       const dashboard = await refreshDashboard();
       $('authView').classList.add('hidden');
       $('clientView').classList.remove('hidden');
       startDashboardPolling();
+      if (catalogProvisionError && $('catalogMessage')) {
+        $('catalogMessage').className = 'message warn';
+        $('catalogMessage').textContent = catalogProvisionError.message || 'Catalog provisioning se nepodarilo dokoncit.';
+      }
       loadProducts().catch((error) => {
         $('catalogMessage').className = 'message warn';
         $('catalogMessage').textContent = error.message || 'Produkty se nepodařilo načíst.';
