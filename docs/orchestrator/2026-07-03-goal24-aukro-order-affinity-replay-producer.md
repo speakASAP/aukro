@@ -26,5 +26,11 @@ State Update -> Producer source is implemented on branch `codex/goal24-order-aff
 
 ## Blockers
 
-- `[MISSING: Marketing parser source allowlist for aukro-service/bazos-service]`
+- `[MISSING: Marketing marketplace replay URL path selection for aukro-service /internal/aukro/order-affinity/replay-candidates]`
+- `[MISSING: Marketing marketplace affinity source allowlist entry for aukro-service]`
+- `[MISSING: Marketing runtime token mapping for Aukro protected replay endpoint]`
 - `[MISSING: runtime deployment and Marketing pod dry-run evidence for Aukro replay endpoint]`
+
+## 2026-07-03 Compatibility Follow-up
+
+Aukro source now has focused assertions for the `marketplace.order_affinity_candidate.v1` envelope emitted by `/internal/aukro/order-affinity/replay-candidates`. Marketing `origin/main` still hard-codes the Allegro replay path and only allowlists `allegro-service`, so Aukro remains fail-closed until Marketing integrates the Aukro path/source and runtime token mapping.
