@@ -76,6 +76,25 @@ function run() {
   assert.equal(draftAllowed.allowed, true);
   assert.deepEqual(draftAllowed.reasonCodes, []);
 
+  const bundleBlocked = service.evaluate({
+    mode: 'draft',
+    now,
+    evidence: {
+      ...passingDraftEvidence(),
+      catalogBundlePublication: {
+        passed: false,
+        checkedAt: fresh,
+        source: 'aukro-service',
+        policyId: 'aukro.catalog_bundle_publication.v1',
+        contractVersion: 'catalog.bundle.v1',
+        publicationMode: 'single_external_listing',
+        canPublishAsSingleListing: false,
+      },
+    },
+  });
+  assert.equal(bundleBlocked.allowed, false);
+  assert.ok(bundleBlocked.reasonCodes.includes('CATALOG_BUNDLE_PUBLICATION_FAILED'));
+
   const publishMissingApproval = service.evaluate({ mode: 'publish', now, evidence: passingDraftEvidence() });
   assert.equal(publishMissingApproval.allowed, false);
   assert.ok(publishMissingApproval.reasonCodes.includes('HUMAN_APPROVAL_MISSING'));

@@ -174,6 +174,32 @@ async function run() {
   assert.equal(fallback.offer.description, 'Synthetic description');
   assert.equal(fallback.sourceSnapshot.descriptionSource, 'catalog-product-description');
 
+  const bundleHarness = createHarness({
+    product: {
+      id: '33333333-3333-3333-3333-333333333333',
+      contractVersion: 'catalog.bundle.v1',
+      productKind: 'catalog_bundle',
+      bundleId: '44444444-4444-4444-4444-444444444444',
+      title: 'Synthetic Catalog Bundle',
+      description: 'Synthetic bundle description',
+      isActive: true,
+      categoryId: 'cat-1',
+      attributes: { color: 'black' },
+    },
+  });
+  const bundleDraft = await bundleHarness.service.createFromCatalog({
+    accountId: bundleHarness.account.id,
+    productId: bundleHarness.product.id,
+    policyEvidence: {
+      aiRiskCleared: { passed: true, checkedAt: fresh, source: 'synthetic-test' },
+      catalogBundlePublication: { passed: true, checkedAt: fresh, source: 'caller-supplied', canPublishAsSingleListing: true },
+    },
+  });
+  assert.equal(bundleDraft.draftStatus, 'blocked');
+  assert.ok(bundleDraft.blockers.includes('CATALOG_BUNDLE_PUBLICATION_FAILED'));
+  assert.equal(bundleDraft.offer.rawData.draft.policyEvidence.catalogBundlePublication.passed, false);
+  assert.equal(bundleDraft.sourceSnapshot.contractVersion, 'catalog.bundle.v1');
+
   const blockedHarness = createHarness({ stock: 0, media: [], pricing: null });
   const blocked = await blockedHarness.service.createFromCatalog({
     accountId: blockedHarness.account.id,

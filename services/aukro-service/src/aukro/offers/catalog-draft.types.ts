@@ -46,6 +46,9 @@ export interface CatalogDraftContentPreviewSnapshot {
 
 export interface CatalogDraftSourceSnapshot {
   productId: string;
+  contractVersion?: string;
+  productKind?: string;
+  bundleId?: string;
   title: string;
   description?: string;
   descriptionSource: CatalogDraftDescriptionSource;

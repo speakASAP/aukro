@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  CatalogBundlePublicationEvidence,
   HumanApprovalEvidence,
   IdempotencyEvidence,
   OfferPolicyEvaluation,
@@ -22,6 +23,7 @@ interface GateDefinition {
   remediation: string;
   modes: PolicyEvaluationMode[];
   validate?: (evidence: PolicyEvidenceFlag) => boolean;
+  optional?: boolean;
 }
 
 @Injectable()
@@ -118,6 +120,17 @@ export class OfferPolicyService {
       modes: ['draft', 'publish'],
     },
     {
+      evidenceKey: 'catalogBundlePublication',
+      missingCode: 'CATALOG_BUNDLE_PUBLICATION_MISSING',
+      failedCode: 'CATALOG_BUNDLE_PUBLICATION_FAILED',
+      staleCode: 'CATALOG_BUNDLE_PUBLICATION_STALE',
+      message: 'Catalog bundle publication policy evidence is required for bundle-shaped products.',
+      remediation: 'Do not publish catalog.bundle.v1 as one Aukro listing until Aukro has approved bundle pricing, stock reservation, shipping, item mapping, and external listing policy evidence.',
+      modes: ['draft', 'publish'],
+      optional: true,
+      validate: (evidence) => Boolean((evidence as CatalogBundlePublicationEvidence).canPublishAsSingleListing),
+    },
+    {
       evidenceKey: 'humanApproved',
       missingCode: 'HUMAN_APPROVAL_MISSING',
       failedCode: 'HUMAN_APPROVAL_FAILED',
@@ -192,7 +205,7 @@ export class OfferPolicyService {
     minMarginPercent?: number,
   ): OfferPolicyReason | null {
     if (!evidence) {
-      return this.reason(gate, gate.missingCode);
+      return gate.optional ? null : this.reason(gate, gate.missingCode);
     }
 
     if (!this.isFresh(evidence.checkedAt, now, maxAgeMinutes)) {

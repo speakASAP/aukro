@@ -880,6 +880,7 @@ export class OffersService {
       : catalogQuality?.source === 'catalog-product-quality-unavailable'
         ? 'Catalog product quality readiness could not be verified; Aukro must fail closed.'
         : undefined;
+    const catalogBundlePublication = this.catalogBundlePublicationEvidence(product, rawData, checkedAt);
 
     return {
       catalogValidated: {
@@ -903,9 +904,53 @@ export class OffersService {
         currency: snapshot.pricing?.currency || 'CZK',
       },
       duplicateChecked: this.flag(!snapshot.duplicateFound, checkedAt, 'aukro-service'),
+      ...(catalogBundlePublication ? { catalogBundlePublication } : {}),
     };
   }
 
+
+  private catalogBundlePublicationEvidence(product: any, rawData: Record<string, any>, checkedAt: string): PolicyEvidenceFlag | undefined {
+    const fields = this.catalogBundleSnapshotFields(product);
+    const rawDraft = this.asRecord(rawData.draft);
+    const rawSnapshot = this.asRecord(rawDraft.sourceSnapshot);
+    const rawContractVersion = this.textOrUndefined(rawSnapshot.contractVersion || rawData.contractVersion);
+    const isCatalogBundle = fields.contractVersion === 'catalog.bundle.v1'
+      || rawContractVersion === 'catalog.bundle.v1'
+      || fields.productKind === 'catalog_bundle'
+      || fields.productKind === 'bundle';
+
+    if (!isCatalogBundle) {
+      return undefined;
+    }
+
+    return {
+      passed: false,
+      checkedAt,
+      source: 'aukro-service',
+      policyId: 'aukro.catalog_bundle_publication.v1',
+      blockers: ['catalog_bundle_single_listing_not_supported'],
+      nextAction: 'use_component_listings_or_wait_for_aukro_bundle_policy',
+      hint: 'Aukro does not currently have approved evidence to publish catalog.bundle.v1 as one external listing with authoritative bundle price, stock reservation, shipping, and component mapping.',
+      contractVersion: 'catalog.bundle.v1',
+      bundleId: fields.bundleId,
+      productKind: fields.productKind,
+      publicationMode: 'single_external_listing',
+      canPublishAsSingleListing: false,
+    } as PolicyEvidenceFlag;
+  }
+
+  private catalogBundleSnapshotFields(product: any): { contractVersion?: string; productKind?: string; bundleId?: string } {
+    const source = this.asRecord(product);
+    const bundle = this.asRecord(source.bundle);
+    const contractVersion = this.textOrUndefined(source.contractVersion || bundle.contractVersion);
+    const productKind = this.textOrUndefined(source.productKind || source.kind || source.type || source.entityType || bundle.kind);
+    const bundleId = this.textOrUndefined(source.bundleId || bundle.bundleId || bundle.id);
+    const result: { contractVersion?: string; productKind?: string; bundleId?: string } = {};
+    if (contractVersion) result.contractVersion = contractVersion;
+    if (productKind) result.productKind = productKind;
+    if (bundleId) result.bundleId = bundleId;
+    return result;
+  }
 
   private buildCatalogDraftSnapshot(snapshot: {
     product: any;
@@ -924,6 +969,7 @@ export class OffersService {
 
     return {
       productId: product.id,
+      ...this.catalogBundleSnapshotFields(product),
       title: contentPreview?.title || product.title || product.name || 'Untitled catalog product',
       description,
       descriptionSource: previewDescription
@@ -1567,7 +1613,14 @@ export class OffersService {
   }
 
   private mergePolicyEvidence(...items: Array<OfferPolicyEvidence | undefined>): OfferPolicyEvidence {
-    return items.reduce((merged, item) => ({ ...merged, ...(item || {}) }), {} as OfferPolicyEvidence);
+    const merged = items.reduce((result, item) => ({ ...result, ...(item || {}) }), {} as OfferPolicyEvidence);
+    const bundleBlocker = items
+      .map((item) => item?.catalogBundlePublication)
+      .find((evidence) => evidence && evidence.passed === false);
+    if (bundleBlocker) {
+      merged.catalogBundlePublication = bundleBlocker;
+    }
+    return merged;
   }
 
   private flag(passed: boolean, checkedAt: string, source: string): PolicyEvidenceFlag {

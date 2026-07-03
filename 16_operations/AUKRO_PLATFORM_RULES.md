@@ -97,6 +97,12 @@ The 2026-06-29 `robots.txt` snapshot disallows many transactional or control rou
 
 Robots directives are not the whole legal contract, but they are an engineering hard stop for crawler-like reads. Do not build crawlers over disallowed routes. Do not rely on robots-allowed pages as permission to scrape or reproduce content; the terms still require explicit Aukro consent for robot/crawler content reproduction.
 
+## Catalog Bundle Publication Boundary
+
+Aukro currently treats `catalog.bundle.v1` as unsupported for one external Aukro listing. The Catalog bundle contract uses `pricePolicy=checkout_authoritative` and requires cross-system evidence for component stock reservation, shipping/free-shipping policy, item mapping, and external listing semantics that Aukro does not own today.
+
+Engineering consequence: any Catalog bundle-shaped product or source snapshot must set `catalogBundlePublication` evidence to failed for `publicationMode=single_external_listing`. Operators may create ordinary component listings when each component independently passes Aukro policy, but Aukro must not publish the bundle aggregate as one external listing until an approved channel-specific bundle policy defines price, stock, reservation, shipping, and order reconciliation behavior.
+
 ## Evidence gates in code
 
 `OfferPolicyService` must keep these gates fail-closed:
@@ -110,6 +116,7 @@ Robots directives are not the whole legal contract, but they are an engineering 
 - `priceValid`: pricing and margin rules are valid and non-manipulative.
 - `duplicateChecked`: duplicate-listing risk is checked.
 - `aiRiskCleared`: AI/rules risk checks pass, but AI output cannot override any other failed gate.
+- `catalogBundlePublication`: bundle-shaped Catalog input must fail closed for one external Aukro listing unless an approved Aukro bundle policy proves price, stock reservation, shipping, component mapping, and order reconciliation evidence.
 - `humanApproved`: authenticated operator approval is required before publish readiness.
 - `rateLimitReady`: account/API budget evidence is fresh before any live mutation.
 - `idempotencyReady`: a stable idempotency key exists before enqueueing a publish attempt.

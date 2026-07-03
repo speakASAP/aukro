@@ -28,6 +28,9 @@ export type PolicyReasonCode =
   | 'AI_RISK_MISSING'
   | 'AI_RISK_FAILED'
   | 'AI_RISK_STALE'
+  | 'CATALOG_BUNDLE_PUBLICATION_MISSING'
+  | 'CATALOG_BUNDLE_PUBLICATION_FAILED'
+  | 'CATALOG_BUNDLE_PUBLICATION_STALE'
   | 'HUMAN_APPROVAL_MISSING'
   | 'HUMAN_APPROVAL_FAILED'
   | 'HUMAN_APPROVAL_STALE'
@@ -66,6 +69,16 @@ export interface IdempotencyEvidence extends PolicyEvidenceFlag {
   idempotencyKey?: string;
 }
 
+export interface CatalogBundlePublicationEvidence extends PolicyEvidenceFlag {
+  contractVersion?: string;
+  bundleId?: string;
+  productKind?: string;
+  publicationMode?: 'single_external_listing' | 'component_listings' | string;
+  itemCount?: number;
+  canPublishAsSingleListing?: boolean;
+  policyRef?: string;
+}
+
 export interface OfferPolicyEvidence {
   catalogValidated?: PolicyEvidenceFlag;
   accountReady?: PolicyEvidenceFlag;
@@ -76,6 +89,7 @@ export interface OfferPolicyEvidence {
   priceValid?: PriceEvidence;
   duplicateChecked?: PolicyEvidenceFlag;
   aiRiskCleared?: PolicyEvidenceFlag;
+  catalogBundlePublication?: CatalogBundlePublicationEvidence;
   humanApproved?: HumanApprovalEvidence;
   rateLimitReady?: PolicyEvidenceFlag;
   idempotencyReady?: IdempotencyEvidence;
