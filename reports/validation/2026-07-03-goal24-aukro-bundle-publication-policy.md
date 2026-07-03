@@ -20,6 +20,22 @@ Aukro-owned docs/verifier/source-policy for Catalog `catalog.bundle.v1`. No live
 
 Focused specs and build ran in an isolated remote worktree using validation-only symlinks to the already-installed remote `node_modules`; the symlinks were removed before commit.
 
+## 2026-07-03 Handoff Marker Refresh
+
+Added the exact Catalog blocker resolution marker to the Aukro-owned orchestrator handoff doc. Fresh validation after the marker update:
+
+| Command | Result |
+| --- | --- |
+| `git diff --check` | Pass |
+| `python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues` | Pass, score 100/100, findings 0 |
+| `python3 scripts/pre_coding_gate.py --root .` | Pass |
+| `python3 scripts/deployment_readiness_gate.py --root .` | Pass |
+| `cd services/aukro-service && ./node_modules/.bin/ts-node --compiler-options {"types":["node"]} src/aukro/offers/policy/offer-policy.service.spec.ts` | Pass |
+| `cd services/aukro-service && LOGGING_SERVICE_URL=http://127.0.0.1:9999 ./node_modules/.bin/ts-node --skip-ignore --compiler-options {"types":["node"]} src/aukro/offers/offers.service.spec.ts` | Pass |
+| `npm --prefix services/aukro-service run build` | Pass |
+
+No live marketplace mutation, queue/confirm call, provider call, deployment, database mutation, secret readout, or cross-repo edit was performed.
+
 ## Policy Result
 
 Aukro source policy now fails closed for `catalog.bundle.v1` as one external listing by emitting `CATALOG_BUNDLE_PUBLICATION_FAILED` when bundle-shaped Catalog input is detected. Caller-supplied passing bundle evidence cannot override an Aukro-derived bundle blocker.
