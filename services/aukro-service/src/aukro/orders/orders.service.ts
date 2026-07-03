@@ -1,5 +1,15 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService, LoggerService, OrderClientService, WarehouseClientService } from '@aukro/shared';
+
+const AUKRO_ORDER_READ_ADMIN_ROLES = new Set([
+  'global:superadmin',
+  'global:platform_admin',
+  'app:aukro-service:admin',
+  'app:aukro:admin',
+  'aukro:admin',
+]);
+
+type OrdersReadActor = { roles?: string[] | null };
 
 type CentralOrderItem = {
   productId: string;
@@ -25,7 +35,8 @@ export class OrdersService {
     this.logger.setContext('OrdersService');
   }
 
-  async findAll(query: any): Promise<any> {
+  async findAll(query: any, actor?: OrdersReadActor): Promise<any> {
+    this.assertOrderReadAdmin(actor);
     return this.prisma.aukroOrder.findMany({
       where: {
         accountId: query.accountId,
@@ -38,11 +49,19 @@ export class OrdersService {
     });
   }
 
-  async findOne(id: string): Promise<any> {
+  async findOne(id: string, actor?: OrdersReadActor): Promise<any> {
+    this.assertOrderReadAdmin(actor);
     return this.prisma.aukroOrder.findUnique({
       where: { id },
       include: { account: true },
     });
+  }
+
+  private assertOrderReadAdmin(actor?: OrdersReadActor): void {
+    const roles = Array.isArray(actor?.roles) ? actor.roles : [];
+    if (!roles.some((role) => AUKRO_ORDER_READ_ADMIN_ROLES.has(role))) {
+      throw new ForbiddenException("Aukro order read requires admin role");
+    }
   }
 
   async create(data: any): Promise<any> {

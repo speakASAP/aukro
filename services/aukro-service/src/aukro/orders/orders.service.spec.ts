@@ -34,7 +34,8 @@ function createHarness(offers: any[] = [], stockRows: any[] = []) {
         updates.push(args);
         return { id: args.where.id, ...args.data };
       },
-      findUnique: async () => null,
+      findMany: async (args: any) => [{ id: 'order-local-1', ...args.where }],
+      findUnique: async (args: any) => args.where?.id === 'order-local-1' ? { id: 'order-local-1' } : null,
     },
     aukroOffer: {
       findFirst: async (args: any) => {
@@ -78,6 +79,14 @@ function createHarness(offers: any[] = [], stockRows: any[] = []) {
 }
 
 async function run() {
+  const readScope = createHarness();
+  await assert.rejects(() => readScope.service.findAll({}, { roles: [] }), /Aukro order read requires admin role/);
+  const readable = await readScope.service.findAll({ status: 'pending' }, { roles: ['app:aukro-service:admin'] });
+  assert.equal(readable[0].status, 'pending');
+  await assert.rejects(() => readScope.service.findOne('order-local-1', { roles: [] }), /Aukro order read requires admin role/);
+  const detail = await readScope.service.findOne('order-local-1', { roles: ['global:superadmin'] });
+  assert.equal(detail.id, 'order-local-1');
+
   const mapped = createHarness([
     {
       id: '44444444-4444-4444-8444-444444444444',

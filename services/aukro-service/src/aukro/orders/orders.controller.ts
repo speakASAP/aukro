@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '@aukro/shared';
 
@@ -8,13 +8,13 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
-  async getOrders(@Param() params: any): Promise<any> {
-    return this.ordersService.findAll(params);
+  async getOrders(@Query() query: any, @Req() req: { user?: any }): Promise<any> {
+    return this.ordersService.findAll(query, req.user || {});
   }
 
   @Get(':id')
-  async getOrder(@Param('id') id: string): Promise<any> {
-    return this.ordersService.findOne(id);
+  async getOrder(@Param('id') id: string, @Req() req: { user?: any }): Promise<any> {
+    return this.ordersService.findOne(id, req.user || {});
   }
 
   @Post()
