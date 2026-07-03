@@ -1,7 +1,7 @@
 process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://logging-microservice:3209';
 
 const { strict: assert } = require('assert');
-const { OrdersService } = require('./orders.service');
+const { AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT, OrdersService } = require('./orders.service');
 
 const accountId = '11111111-1111-4111-8111-111111111111';
 const catalogProductId = '22222222-2222-4222-8222-222222222222';
@@ -9,7 +9,7 @@ const otherCatalogProductId = '33333333-3333-4333-8333-333333333333';
 const warehouseId = '55555555-5555-4555-8555-555555555555';
 const otherWarehouseId = '66666666-6666-4666-8666-666666666666';
 
-function createHarness(offers: any[] = [], stockRows: any[] = []) {
+function createHarness(offers: any[] = [], stockRows: any[] = [], overrides: any = {}) {
   const centralOrders: any[] = [];
   const updates: any[] = [];
   const offerQueries: any[] = [];
@@ -34,7 +34,7 @@ function createHarness(offers: any[] = [], stockRows: any[] = []) {
         updates.push(args);
         return { id: args.where.id, ...args.data };
       },
-      findMany: async (args: any) => [{ id: 'order-local-1', ...args.where }],
+      findMany: async (args: any) => overrides.localOrders ?? [{ id: 'order-local-1', ...args.where }],
       findUnique: async (args: any) => args.where?.id === 'order-local-1' ? { id: 'order-local-1' } : null,
     },
     aukroOffer: {
@@ -220,6 +220,49 @@ async function run() {
 
   assert.equal(missingWarehouse.centralOrders.length, 0);
   assert.equal(missingWarehouse.updates.length, 0);
+  const replay = createHarness([], [], {
+    localOrders: [
+      {
+        id: 'local-order-1',
+        aukroOrderId: 'sensitive-aukro-order-1',
+        total: 750,
+        currency: 'CZK',
+        status: 'paid',
+        createdAt: new Date('2026-07-03T09:00:00.000Z'),
+        rawData: {
+          customerEmail: 'buyer@example.invalid',
+          deliveryAddress: { city: 'Do not expose' },
+          items: [
+            { catalogProductId: catalogProductId, sku: 'SKU-1', quantity: 2, unitPrice: 100, totalPrice: 200 },
+            { productId: otherCatalogProductId, productIdSource: 'catalog', quantity: 1, price: 550, total: 550 },
+          ],
+        },
+      },
+      {
+        id: 'local-order-2',
+        aukroOrderId: 'single-product-order',
+        currency: 'CZK',
+        createdAt: new Date('2026-07-03T10:00:00.000Z'),
+        rawData: { items: [{ catalogProductId, quantity: 1, price: 100 }] },
+      },
+    ],
+  } as any);
+
+  const replayResult = await replay.service.getOrderAffinityReplayCandidates({ limit: 10, from: '2026-07-01T00:00:00.000Z' });
+  assert.equal(replayResult.contract, AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT);
+  assert.equal(replayResult.sourceOwner, 'aukro-service');
+  assert.equal(replayResult.consumerOwner, 'marketing-microservice');
+  assert.equal(replayResult.channel, 'aukro');
+  assert.equal(replayResult.count, 1);
+  assert.equal(replayResult.skippedRecords, 1);
+  assert.equal(replayResult.events[0].source, 'aukro-service');
+  assert.equal(replayResult.events[0].payload.channel, 'aukro');
+  assert.equal(replayResult.events[0].payload.items.length, 2);
+  const serializedReplay = JSON.stringify(replayResult);
+  assert.equal(serializedReplay.includes('buyer@example.invalid'), false);
+  assert.equal(serializedReplay.includes('Do not expose'), false);
+  assert.equal(serializedReplay.includes('sensitive-aukro-order-1'), false);
+
 }
 
 run().catch((error) => {

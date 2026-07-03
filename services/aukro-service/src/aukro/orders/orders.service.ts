@@ -1,5 +1,8 @@
+import { createHash } from 'crypto';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService, LoggerService, OrderClientService, WarehouseClientService } from '@aukro/shared';
+
+export const AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT = 'marketplace.order_affinity_candidate.v1';
 
 const AUKRO_ORDER_READ_ADMIN_ROLES = new Set([
   'global:superadmin',
@@ -20,6 +23,35 @@ type CentralOrderItem = {
   totalPrice: number;
   warehouseId: string;
 };
+
+type OrderAffinityReplayQuery = {
+  from?: string;
+  to?: string;
+  limit?: string | number;
+  cursor?: string;
+  dryRun?: string | boolean;
+};
+
+function positiveInteger(value: any, fallback: number, max: number): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
+}
+
+function parseDate(value: any): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isoOrNull(value: any): string | null {
+  const parsed = parseDate(value);
+  return parsed ? parsed.toISOString() : null;
+}
+
+function hashedReplayRef(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 32);
+}
 
 @Injectable()
 export class OrdersService {
@@ -351,6 +383,91 @@ export class OrdersService {
     ];
 
     return Array.from(new Set(candidates.map((candidate) => this.optionalString(candidate)).filter(Boolean) as string[]));
+  }
+
+  async getOrderAffinityReplayCandidates(query: OrderAffinityReplayQuery = {}): Promise<any> {
+    const limit = positiveInteger(query.limit, 50, 200);
+    const fetchLimit = Math.min(limit * 5, 1000);
+    const createdAt: any = {};
+    const from = isoOrNull(query.from);
+    const to = isoOrNull(query.to);
+    if (from) createdAt.gte = new Date(from);
+    if (to) createdAt.lte = new Date(to);
+    const rows = await this.prisma.aukroOrder.findMany({
+      where: Object.keys(createdAt).length > 0 ? { createdAt } : {},
+      take: fetchLimit,
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        aukroOrderId: true,
+        total: true,
+        currency: true,
+        status: true,
+        rawData: true,
+        createdAt: true,
+      },
+    });
+    const events = rows
+      .map((order) => this.buildOrderAffinityReplayEvent(order))
+      .filter((event): event is Record<string, unknown> => Boolean(event))
+      .slice(0, limit);
+    return {
+      sourceOwner: 'aukro-service',
+      consumerOwner: 'marketing-microservice',
+      contract: AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT,
+      channel: 'aukro',
+      filters: {
+        from,
+        to,
+        limit,
+        cursor: query.cursor || null,
+        dryRun: query.dryRun === true || query.dryRun === 'true',
+      },
+      cursorBefore: query.cursor || null,
+      cursorAfter: null,
+      count: events.length,
+      events,
+      skippedRecords: Math.max(0, rows.length - events.length),
+    };
+  }
+
+  private buildOrderAffinityReplayEvent(order: any): Record<string, unknown> | null {
+    const rawData = this.asRecord(order.rawData);
+    const mappedItems = this.extractRawOrderItems(rawData)
+      .map((item) => this.asRecord(item))
+      .map((item) => this.buildReplayItem(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+    const distinctProductIds = new Set(mappedItems.map((item: any) => item.productId));
+    if (distinctProductIds.size < 2) return null;
+    const safeRef = hashedReplayRef(String(order.aukroOrderId || order.id));
+    return {
+      type: AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT,
+      eventVersion: 1,
+      eventId: `aukro.order-affinity:${safeRef}`,
+      occurredAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : String(order.createdAt || new Date().toISOString()),
+      source: 'aukro-service',
+      payload: {
+        orderId: `aukro-replay:${safeRef}`,
+        channel: 'aukro',
+        currency: this.optionalString(order.currency) || 'CZK',
+        items: mappedItems,
+      },
+    };
+  }
+
+  private buildReplayItem(item: Record<string, any>): Record<string, unknown> | null {
+    const productId = this.explicitCatalogProductId(item);
+    if (!productId) return null;
+    const quantity = this.positiveNumber(item.quantity ?? item.qty, 1);
+    const unitPrice = this.numberValue(item.unitPrice ?? item.price ?? item.amount, 0);
+    const totalPrice = this.numberValue(item.totalPrice ?? item.total ?? item.lineTotal, unitPrice * quantity);
+    return {
+      productId,
+      ...(this.optionalString(item.sku) ? { sku: this.optionalString(item.sku) } : {}),
+      quantity,
+      unitPrice,
+      totalPrice,
+    };
   }
 
   private asRecord(value: any): Record<string, any> {
