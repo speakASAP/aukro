@@ -18,12 +18,17 @@ The focused order-service spec now verifies:
 
 - contract `marketplace.order_affinity_candidate.v1`;
 - `sourceOwner=aukro-service`, `consumerOwner=marketing-microservice`, `channel=aukro`;
-- only multi-Catalog-product orders emit events;
+- only eligible paid/processable multi-Catalog-product orders emit events;
+- pending multi-product orders fail closed;
 - serialized response omits customer email, delivery address, and raw marketplace order id.
 
 ## Sensitive Data
 
 No secrets, customer identifiers, addresses, payment details, provider tokens, or raw marketplace payloads are emitted by the replay event. The event uses a SHA-256 derived reference prefix instead of raw `aukroOrderId`.
+
+## Resolved Blockers
+
+- `[MISSING: Aukro paid multi-product replay eligibility mapping]` is resolved in Aukro-owned source/tests/docs by the explicit eligible-status set plus the two-distinct-Catalog-product rule.
 
 ## Blockers
 

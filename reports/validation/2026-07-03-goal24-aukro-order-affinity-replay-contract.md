@@ -31,6 +31,11 @@ The response data envelope is expected to include:
 - `contract=marketplace.order_affinity_candidate.v1`
 - `channel=aukro`
 - `events[]` with `type=marketplace.order_affinity_candidate.v1`, `eventVersion=1`, `source=aukro-service`, hashed `eventId`, hashed `payload.orderId`, `payload.channel=aukro`, optional `currency`, and bounded `items[]` containing Catalog product IDs and item amounts only.
+- eligible local order statuses only: `paid`, `payment_completed`, `ready_for_processing`, `processing`, `shipped`, `delivered`, and `completed`; every other status fails closed.
+
+## Fail-Closed Eligibility Findings
+
+Aukro source now resolves `[MISSING: Aukro paid multi-product replay eligibility mapping]`: replay candidates require an eligible paid/processable local status and at least two distinct explicit Catalog product ids after item mapping. Pending, unpaid, cancelled, refunded, unknown, blank, and unmapped statuses are excluded even when line items contain two products.
 
 ## Fail-Closed Compatibility Findings
 
@@ -52,7 +57,7 @@ Marketing `origin/main` also allowlists only `allegro-service` for `marketplace.
 
 ## Validation Evidence
 
-- Focused orders spec: `cd services/aukro-service && npx ts-node --skip-ignore --compiler-options ... src/aukro/orders/orders.service.spec.ts` -> pass.
+- Focused orders spec: `cd services/aukro-service && npx ts-node --skip-ignore --compiler-options ... src/aukro/orders/orders.service.spec.ts` -> pass; includes paid multi-product inclusion and pending multi-product exclusion.
 - Service build: `npm --prefix services/aukro-service run build` -> pass.
 - Whitespace check: `git diff --check` -> pass.
 - Service test script: `npm --prefix services/aukro-service run test` -> pass.

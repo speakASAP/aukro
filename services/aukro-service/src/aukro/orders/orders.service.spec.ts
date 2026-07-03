@@ -241,9 +241,23 @@ async function run() {
       {
         id: 'local-order-2',
         aukroOrderId: 'single-product-order',
+        status: 'paid',
         currency: 'CZK',
         createdAt: new Date('2026-07-03T10:00:00.000Z'),
         rawData: { items: [{ catalogProductId, quantity: 1, price: 100 }] },
+      },
+      {
+        id: 'local-order-3',
+        aukroOrderId: 'pending-multi-product-order',
+        status: 'pending',
+        currency: 'CZK',
+        createdAt: new Date('2026-07-03T11:00:00.000Z'),
+        rawData: {
+          items: [
+            { catalogProductId, quantity: 1, price: 100 },
+            { catalogProductId: otherCatalogProductId, quantity: 1, price: 200 },
+          ],
+        },
       },
     ],
   } as any);
@@ -254,7 +268,7 @@ async function run() {
   assert.equal(replayResult.consumerOwner, 'marketing-microservice');
   assert.equal(replayResult.channel, 'aukro');
   assert.equal(replayResult.count, 1);
-  assert.equal(replayResult.skippedRecords, 1);
+  assert.equal(replayResult.skippedRecords, 2);
   const replayEvent = replayResult.events[0];
   assert.equal(replayEvent.type, AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT);
   assert.equal(replayEvent.eventVersion, 1);
@@ -272,6 +286,7 @@ async function run() {
   assert.equal(serializedReplay.includes('buyer@example.invalid'), false);
   assert.equal(serializedReplay.includes('Do not expose'), false);
   assert.equal(serializedReplay.includes('sensitive-aukro-order-1'), false);
+  assert.equal(serializedReplay.includes('pending-multi-product-order'), false);
 
 }
 

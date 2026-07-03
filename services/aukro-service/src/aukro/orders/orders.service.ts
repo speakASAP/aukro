@@ -4,6 +4,16 @@ import { PrismaService, LoggerService, OrderClientService, WarehouseClientServic
 
 export const AUKRO_ORDER_AFFINITY_REPLAY_CONTRACT = 'marketplace.order_affinity_candidate.v1';
 
+const AUKRO_ORDER_AFFINITY_ELIGIBLE_STATUSES = new Set([
+  'paid',
+  'payment_completed',
+  'ready_for_processing',
+  'processing',
+  'shipped',
+  'delivered',
+  'completed',
+]);
+
 const AUKRO_ORDER_READ_ADMIN_ROLES = new Set([
   'global:superadmin',
   'global:platform_admin',
@@ -432,6 +442,8 @@ export class OrdersService {
   }
 
   private buildOrderAffinityReplayEvent(order: any): Record<string, unknown> | null {
+    if (!this.isOrderAffinityReplayStatusEligible(order.status)) return null;
+
     const rawData = this.asRecord(order.rawData);
     const mappedItems = this.extractRawOrderItems(rawData)
       .map((item) => this.asRecord(item))
@@ -453,6 +465,11 @@ export class OrdersService {
         items: mappedItems,
       },
     };
+  }
+
+  private isOrderAffinityReplayStatusEligible(status: any): boolean {
+    const normalized = this.optionalString(status)?.toLowerCase().replace(/[\s-]+/g, '_');
+    return Boolean(normalized && AUKRO_ORDER_AFFINITY_ELIGIBLE_STATUSES.has(normalized));
   }
 
   private buildReplayItem(item: Record<string, any>): Record<string, unknown> | null {
