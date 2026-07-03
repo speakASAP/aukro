@@ -35,6 +35,30 @@ async function run() {
   assert.equal(dashboardShell.includes('document.hidden || !state.token'), true);
   assert.equal(dashboardShell.includes("document.addEventListener('visibilitychange'"), true);
   assert.equal(dashboardShell.includes("window.addEventListener('pagehide', stopDashboardPolling)"), true);
+  assert.equal(dashboardShell.includes("refreshOrders"), true);
+
+  const requiredLifecycleStages = [
+    "ordered_unpaid",
+    "payment_failed",
+    "paid_not_delivered",
+    "warehouse_fulfillment_requested",
+    "warehouse_collecting",
+    "warehouse_forming",
+    "warehouse_formed",
+    "handed_to_delivery",
+    "in_delivery",
+    "received",
+    "not_received",
+    "returned",
+    "cancelled",
+  ];
+  for (const stage of requiredLifecycleStages) {
+    const label = controller.orderLifecycleLabel(stage);
+    assert.equal(typeof label, "string");
+    assert.equal(label.length > 0, true);
+    assert.notEqual(label, stage.replace(/_/g, " "));
+  }
+
 
   const rawItem = {
     title: 'Sold catalog item',

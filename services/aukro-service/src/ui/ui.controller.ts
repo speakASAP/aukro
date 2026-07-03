@@ -1796,7 +1796,7 @@ export class UiController {
                 <div class="pager" id="auctionProductsPager"></div>
               </div>
               <div class="panel">
-                <h2 class="section-title">Produkty prodané na Aukro</h2>
+                <div class="toolbar"><h2 class="section-title">Produkty prodané na Aukro</h2><button id="refreshOrders" type="button">Obnovit Orders</button></div>
                 <div class="message" id="ordersMessage"></div>
                 <div class="compact-product-grid" id="orders"></div>
               </div>
@@ -2353,6 +2353,13 @@ export class UiController {
     if (page === 'dashboard') {
       consumeAuthFragment();
       updateHeaderAuth();
+      $('refreshOrders')?.addEventListener('click', async () => {
+        const button = $('refreshOrders');
+        button.disabled = true;
+        $('ordersMessage').textContent = 'Načítá se čerstvý Orders stav...';
+        try { await refreshDashboard({ silent: true }); }
+        finally { button.disabled = false; }
+      });
       $('loadProducts').addEventListener('click', () => {
         state.catalogPage = 1;
         loadProducts().catch((error) => {
