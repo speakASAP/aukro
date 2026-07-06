@@ -32,6 +32,10 @@ async function run() {
 
   const dashboardShell = controller.renderShell({ page: 'dashboard' });
   assert.equal(dashboardShell.includes('dashboardPollMs: 30000'), true);
+  assert.equal(dashboardShell.includes('/profile?client_id=aukro'), true);
+  assert.equal(dashboardShell.includes('/wallet?client_id=aukro'), true);
+  assert.equal(dashboardShell.includes('email='), false);
+  assert.equal(dashboardShell.includes('access_token='), false);
   assert.equal(dashboardShell.includes('document.hidden || !state.token'), true);
   assert.equal(dashboardShell.includes("document.addEventListener('visibilitychange'"), true);
   assert.equal(dashboardShell.includes("window.addEventListener('pagehide', stopDashboardPolling)"), true);
@@ -130,6 +134,12 @@ async function run() {
   assert.equal(publicUnavailable.ordersReadStatus, 'unavailable');
   assert.equal(publicUnavailable.statusMessage, 'Orders stav je unknown/stale');
   assert.equal(publicUnavailable.stale, true);
+
+  const authLinks = controller.authAccountLinks();
+  assert.match(authLinks.profileUrl, /\/profile\?client_id=aukro/);
+  assert.match(authLinks.walletUrl, /\/wallet\?client_id=aukro/);
+  assert.equal(authLinks.profileUrl.includes('email='), false);
+  assert.equal(authLinks.walletUrl.includes('access_token='), false);
 
   const summary = controller.dashboardSummary([], hydrated);
   assert.equal(summary.ordersTotal, 3);

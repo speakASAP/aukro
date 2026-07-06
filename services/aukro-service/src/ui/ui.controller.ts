@@ -73,6 +73,7 @@ export class UiController {
     return {
       user,
       account: this.publicAccount(account),
+      authLinks: this.authAccountLinks(),
       isAukroAdmin: this.isAukroAdmin(user),
     };
   }
@@ -108,6 +109,7 @@ export class UiController {
     return {
       user,
       account: this.publicAccount(account),
+      authLinks: this.authAccountLinks(),
       isAukroAdmin: this.isAukroAdmin(user),
       summary: this.dashboardSummary(offers, hydratedOrders),
       offers: offers.map((offer) => this.publicOffer(offer)),
@@ -1002,12 +1004,29 @@ export class UiController {
     return Math.max(min, Math.min(max, Math.trunc(parsed)));
   }
 
+  private authDashboardReturnUrl(): string {
+    return process.env.AUKRO_DASHBOARD_URL || 'https://aukro.alfares.cz/dashboard';
+  }
+
+  private hostedAuthUrl(path: string, state: string): string {
+    const authBaseUrl = (process.env.HOSTED_AUTH_URL || 'https://auth.alfares.cz').replace(/\/$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${authBaseUrl}${normalizedPath}?client_id=aukro&return_url=${encodeURIComponent(this.authDashboardReturnUrl())}&state=${encodeURIComponent(state)}`;
+  }
+
+  private authAccountLinks() {
+    return {
+      profileUrl: this.hostedAuthUrl('/profile', 'aukro-profile'),
+      walletUrl: this.hostedAuthUrl('/wallet', 'aukro-wallet'),
+      settingsUrl: this.hostedAuthUrl('/settings', 'aukro-settings'),
+    };
+  }
+
   private renderShell({ page }: { page: 'landing' | 'dashboard' }): string {
     const isDashboard = page === 'dashboard';
-    const authBaseUrl = (process.env.HOSTED_AUTH_URL || 'https://auth.alfares.cz').replace(/\/$/, '');
-    const dashboardReturnUrl = process.env.AUKRO_DASHBOARD_URL || 'https://aukro.alfares.cz/dashboard';
-    const hostedLoginUrl = `${authBaseUrl}/login?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
-    const hostedRegisterUrl = `${authBaseUrl}/register?client_id=aukro&return_url=${encodeURIComponent(dashboardReturnUrl)}&state=aukro-dashboard`;
+    const hostedLoginUrl = this.hostedAuthUrl('/login', 'aukro-dashboard');
+    const hostedRegisterUrl = this.hostedAuthUrl('/register', 'aukro-dashboard');
+    const authLinks = this.authAccountLinks();
     const catalogDashboardBaseUrl = (process.env.CATALOG_DASHBOARD_URL || 'https://catalog.alfares.cz').replace(/\/$/, '');
     const catalogProductsUrl = `${catalogDashboardBaseUrl}/dashboard/products`;
     const catalogNewProductUrl = `${catalogDashboardBaseUrl}/dashboard/products/new`;
@@ -1694,6 +1713,8 @@ export class UiController {
           <ul class="side-list">
             <li><span>Moje nabídky</span></li>
             <li><span>Produkty k publikaci</span></li>
+            <li><a href="${authLinks.profileUrl}" target="_blank" rel="noopener">Auth profil</a></li>
+            <li><a href="${authLinks.walletUrl}" target="_blank" rel="noopener">Auth peněženka</a></li>
             <li><a href="${catalogProductsUrl}" target="_blank" rel="noopener">Spravovat Catalog produkty</a></li>
             <li><a href="${catalogNewProductUrl}" target="_blank" rel="noopener">Přidat Catalog produkt</a></li>
             <li><a href="${catalogSettingsUrl}" target="_blank" rel="noopener">Zdroje a resale</a></li>
@@ -1730,7 +1751,7 @@ export class UiController {
                 <p class="muted" id="userLine"></p>
                 <div class="status-line"><span class="status-dot" id="linkDot"></span><strong id="accountLink">Aukro účet se načítá</strong></div>
                 <div class="meta" id="accountMeta"></div>
-                <div class="toolbar"><button id="logout" type="button">Odhlásit</button></div>
+                <div class="toolbar"><a class="button" id="authProfileLink" href="${authLinks.profileUrl}" target="_blank" rel="noopener">Auth profil</a><a class="button" id="authWalletLink" href="${authLinks.walletUrl}" target="_blank" rel="noopener">Peněženka</a><button id="logout" type="button">Odhlásit</button></div>
               </div>
               <div class="panel">
                 <h2 class="section-title">Přehled</h2>
@@ -1839,6 +1860,8 @@ export class UiController {
     const $ = (id) => document.getElementById(id);
     const page = document.body.dataset.page;
     const hostedLoginUrl = '${hostedLoginUrl}';
+    const hostedProfileUrl = '${authLinks.profileUrl}';
+    const hostedWalletUrl = '${authLinks.walletUrl}';
     const api = async (url, options = {}) => {
       const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
       if (state.token) headers.Authorization = 'Bearer ' + state.token;
@@ -1983,6 +2006,9 @@ export class UiController {
       $('linkDot').classList.toggle('ok', Boolean(account.isLinkedToAukro));
       $('accountLink').textContent = account.isLinkedToAukro ? 'Aukro účet je připojený' : 'Aukro API účet zatím není připojený';
       $('accountMeta').innerHTML = '<span class="pill">' + escapeHtml(account.email || 'email nezadán') + '</span><span class="pill">' + (account.isActive ? 'aktivní' : 'neaktivní') + '</span><span class="pill">ID ' + escapeHtml(account.id || '-') + '</span>';
+      const authLinks = dashboard.authLinks || {};
+      $('authProfileLink').href = authLinks.profileUrl || hostedProfileUrl;
+      $('authWalletLink').href = authLinks.walletUrl || hostedWalletUrl;
       $('metrics').innerHTML = metric(summary.offersTotal || 0, 'nabídky celkem') + metric(summary.activeOffers || 0, 'aktivní nabídky') + metric(summary.drafts || 0, 'drafty') + metric(summary.blockedDrafts || 0, 'blokované drafty') + metric(summary.ordersTotal || 0, 'objednávky') + metric(summary.ordersWithCentralStatus || 0, 'Orders stav načten') + metric(summary.staleOrders || 0, 'unknown/stale Orders') + metric(summary.unforwardedOrders || 0, 'nepředané objednávky');
       renderOffers(dashboard.offers || []);
       renderOrders(dashboard.orders || []);
