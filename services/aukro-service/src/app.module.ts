@@ -10,6 +10,8 @@ import { PrismaModule, LoggerModule, HealthModule, RabbitMQModule, AuthModule, C
 import { HealthController } from './health/health.controller';
 import { UiController } from './ui/ui.controller';
 
+import { BusinessHealthModule } from './business-health/business-health.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -23,6 +25,7 @@ import { UiController } from './ui/ui.controller';
     AuthModule,
     ClientsModule,
     AukroModule,
+    BusinessHealthModule,
   ],
   controllers: [HealthController, UiController],
 })
