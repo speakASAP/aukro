@@ -1,6 +1,7 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpException, Param, Post, Query, Req, StreamableFile, UseGuards } from '@nestjs/common';
 import { AuthResponse, AuthService, AuthUser, CATALOG_PRODUCT_QUALITY_POLICY_ID, CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER, CatalogClientService, CatalogProductQualityIssue, CatalogProductReadiness, OrderClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
+import { FAVICON_ICO } from './favicon.assets';
 
 interface UiAuthRequest {
   email: string;
@@ -37,6 +38,13 @@ export class UiController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   landing(): string {
     return this.renderShell({ page: 'landing' });
+  }
+
+  @Get('favicon.ico')
+  @Header('Content-Type', 'image/x-icon')
+  @Header('Cache-Control', 'public, max-age=604800')
+  favicon(): StreamableFile {
+    return new StreamableFile(FAVICON_ICO);
   }
 
   @Get('dashboard')
