@@ -1011,7 +1011,7 @@ export class UiController {
   private hostedAuthUrl(path: string, state: string): string {
     const authBaseUrl = (process.env.HOSTED_AUTH_URL || 'https://auth.alfares.cz').replace(/\/$/, '');
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    return `${authBaseUrl}${normalizedPath}?client_id=aukro&return_url=${encodeURIComponent(this.authDashboardReturnUrl())}&state=${encodeURIComponent(state)}`;
+    return `${authBaseUrl}${normalizedPath}?client_id=aukro&return_url=${encodeURIComponent(this.authDashboardReturnUrl())}&state=${encodeURIComponent(state)}&lang=cs`;
   }
 
   private authAccountLinks() {
