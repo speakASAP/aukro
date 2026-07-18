@@ -3,23 +3,23 @@
   "execution_plans": {
     "execution_plan_count": 17,
     "execution_plan_files": [
-      "21_execution_plans/EP-TASK-001.md",
-      "21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md",
-      "21_execution_plans/EP-TASK-003-aukro-compliance-policy.md",
-      "21_execution_plans/EP-TASK-004-service-integration-clients.md",
-      "21_execution_plans/EP-TASK-005-catalog-sell-action-draft-model.md",
-      "21_execution_plans/EP-TASK-006-ai-proposal-human-approval.md",
-      "21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md",
-      "21_execution_plans/EP-TASK-008-revenue-analytics-events.md",
-      "21_execution_plans/EP-TASK-009-operator-workbench-api.md",
-      "21_execution_plans/EP-TASK-010-workbench-bulk-preview.md",
-      "21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md",
-      "21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md",
-      "21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md",
-      "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md",
-      "21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md",
-      "21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md",
-      "21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md"
+      "docs/21_execution_plans/EP-TASK-001.md",
+      "docs/21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md",
+      "docs/21_execution_plans/EP-TASK-003-aukro-compliance-policy.md",
+      "docs/21_execution_plans/EP-TASK-004-service-integration-clients.md",
+      "docs/21_execution_plans/EP-TASK-005-catalog-sell-action-draft-model.md",
+      "docs/21_execution_plans/EP-TASK-006-ai-proposal-human-approval.md",
+      "docs/21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md",
+      "docs/21_execution_plans/EP-TASK-008-revenue-analytics-events.md",
+      "docs/21_execution_plans/EP-TASK-009-operator-workbench-api.md",
+      "docs/21_execution_plans/EP-TASK-010-workbench-bulk-preview.md",
+      "docs/21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md",
+      "docs/21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md",
+      "docs/21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md",
+      "docs/21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md",
+      "docs/21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md",
+      "docs/21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md",
+      "docs/21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md"
     ],
     "missing_validation_plan": []
   },
@@ -27,19 +27,19 @@
   "missing_immutable_files": [],
   "next_step": "start_controlled_coding",
   "project_invariants": {
-    "path": "17_governance/PROJECT_INVARIANTS.md",
+    "path": "docs/17_governance/PROJECT_INVARIANTS.md",
     "status": "pass"
   },
   "required_immutable_files": [
-    "00_constitution/CONSTITUTION.md",
-    "01_vision/VISION.md"
+    "docs/00_constitution/CONSTITUTION.md",
+    "docs/01_vision/VISION.md"
   ],
   "root": "/home/ssf/Documents/Github/aukro",
   "schema_version": "1.0.0",
   "sensitive_data_findings": [],
   "shared_principles_with_dos": {
     "missing_sections": [],
-    "path": "17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
+    "path": "docs/17_governance/SHARED_PRINCIPLES_WITH_DOS.md",
     "reference_boundary_present": true,
     "required_sections": [
       "Purpose",
@@ -55,23 +55,23 @@
     "missing_upstream_traceability": [],
     "task_count": 17,
     "task_files": [
-      "11_tasks/TASK-001-implement-ips-governance-baseline.md",
-      "11_tasks/TASK-002-create-ai-commerce-roadmap.md",
-      "11_tasks/TASK-003-aukro-compliance-policy.md",
-      "11_tasks/TASK-004-service-integration-clients.md",
-      "11_tasks/TASK-005-catalog-sell-action-draft-model.md",
-      "11_tasks/TASK-006-ai-proposal-human-approval.md",
-      "11_tasks/TASK-007-publish-queue-reconciliation.md",
-      "11_tasks/TASK-008-revenue-analytics-events.md",
-      "11_tasks/TASK-009-operator-workbench-api.md",
-      "11_tasks/TASK-010-workbench-bulk-preview.md",
-      "11_tasks/TASK-011-document-aukro-platform-rules.md",
-      "11_tasks/TASK-012-catalog-content-preview-drafts.md",
-      "11_tasks/TASK-013-dashboard-bulk-publish-candidates.md",
-      "11_tasks/TASK-014-official-aukro-public-api-executor.md",
-      "11_tasks/TASK-015-mp-xml-feed-executor.md",
-      "11_tasks/TASK-016-orders-create-synthetic-smoke.md",
-      "11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md"
+      "docs/11_tasks/TASK-001-implement-ips-governance-baseline.md",
+      "docs/11_tasks/TASK-002-create-ai-commerce-roadmap.md",
+      "docs/11_tasks/TASK-003-aukro-compliance-policy.md",
+      "docs/11_tasks/TASK-004-service-integration-clients.md",
+      "docs/11_tasks/TASK-005-catalog-sell-action-draft-model.md",
+      "docs/11_tasks/TASK-006-ai-proposal-human-approval.md",
+      "docs/11_tasks/TASK-007-publish-queue-reconciliation.md",
+      "docs/11_tasks/TASK-008-revenue-analytics-events.md",
+      "docs/11_tasks/TASK-009-operator-workbench-api.md",
+      "docs/11_tasks/TASK-010-workbench-bulk-preview.md",
+      "docs/11_tasks/TASK-011-document-aukro-platform-rules.md",
+      "docs/11_tasks/TASK-012-catalog-content-preview-drafts.md",
+      "docs/11_tasks/TASK-013-dashboard-bulk-publish-candidates.md",
+      "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md",
+      "docs/11_tasks/TASK-015-mp-xml-feed-executor.md",
+      "docs/11_tasks/TASK-016-orders-create-synthetic-smoke.md",
+      "docs/11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md"
     ]
   }
 }

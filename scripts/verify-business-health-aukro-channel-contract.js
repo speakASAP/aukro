@@ -51,9 +51,9 @@ const requiredSnippets = {
     'services/aukro-service/src/aukro/offers/offers.service.ts',
     'services/aukro-service/src/aukro/executor/executor.service.ts',
     'services/aukro-service/src/aukro/public-api/public-api.client.ts',
-    '16_operations/AUKRO_PLATFORM_RULES.md',
-    '16_operations/INTEGRATIONS.md',
-    '10_features/FEAT-008-observability-reconciliation.md',
+    'docs/16_operations/AUKRO_PLATFORM_RULES.md',
+    'docs/16_operations/INTEGRATIONS.md',
+    'docs/10_features/FEAT-008-observability-reconciliation.md',
   ],
   'services/aukro-service/src/business-health/business-health.types.ts': [
     'AukroChannelReadbackBusinessHealthEnvelope',

@@ -63,15 +63,15 @@ export class BusinessHealthService {
           reason: 'Official Aukro API client separates read endpoints from create/update calls and fails closed when auth/config readiness is missing.',
         },
         {
-          path: '16_operations/AUKRO_PLATFORM_RULES.md',
+          path: 'docs/16_operations/AUKRO_PLATFORM_RULES.md',
           reason: 'Provider policy requires official Aukro integration evidence, account readiness, rate-limit evidence, and human approval for live marketplace automation.',
         },
         {
-          path: '16_operations/INTEGRATIONS.md',
+          path: 'docs/16_operations/INTEGRATIONS.md',
           reason: 'Repository integration map declares Catalog, Warehouse, Orders, and Aukro API ownership boundaries.',
         },
         {
-          path: '10_features/FEAT-008-observability-reconciliation.md',
+          path: 'docs/10_features/FEAT-008-observability-reconciliation.md',
           reason: 'Feature-level intent for offer, stock, price, and order reconciliation and drift visibility.',
         },
       ],
@@ -88,11 +88,11 @@ export class BusinessHealthService {
         '[MISSING: approved reconciliation rule that maps Warehouse/Catalog availability to Aukro sellable quantity without external mutation side effects]',
       ],
       intentChain: {
-        vision: '01_vision/VISION.md',
-        goalImpact: '22_goal_impact/[MISSING: business-health Aukro channel readback goal impact]',
-        system: '04_systems/SYS-001-aukro-service.md',
-        feature: '10_features/FEAT-008-observability-reconciliation.md',
-        task: '11_tasks/[MISSING: Aukro business-health channel readback task]',
+        vision: 'docs/01_vision/VISION.md',
+        goalImpact: 'docs/22_goal_impact/[MISSING: business-health Aukro channel readback goal impact]',
+        system: 'docs/04_systems/SYS-001-aukro-service.md',
+        feature: 'docs/10_features/FEAT-008-observability-reconciliation.md',
+        task: 'docs/11_tasks/[MISSING: Aukro business-health channel readback task]',
         executionPlan: 'docs/orchestrator/2026-07-06-aukro-business-health-handoff.md',
         codingPrompt: 'Codex prompt 2026-07-06 Aukro service-owned business-health evidence envelope',
         code: [

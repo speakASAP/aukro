@@ -31,7 +31,7 @@ Aukro.cz marketplace integration — offers, accounts, stock sync, order forward
 
 ## Intent Preservation System
 
-This repository follows the company IPS standard. Before implementation work, read 00_constitution/CONSTITUTION.md, 01_vision/VISION.md, 17_governance/PROJECT_INVARIANTS.md, the relevant task under 11_tasks/, and its execution plan under 21_execution_plans/.
+This repository follows the company IPS standard. Before implementation work, read docs/00_constitution/CONSTITUTION.md, docs/01_vision/VISION.md, docs/17_governance/PROJECT_INVARIANTS.md, the relevant task under docs/11_tasks/, and its execution plan under docs/21_execution_plans/.
 
 Core gate commands:
 

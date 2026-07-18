@@ -4,10 +4,10 @@
 
 Vision -> Goal Impact -> System -> Feature -> Task -> Execution Plan -> Coding Prompt -> Code -> Validation
 
-- Vision: `01_vision/VISION.md`
+- Vision: `docs/01_vision/VISION.md`
 - Goal Impact: `[MISSING: business-health Aukro channel readback goal impact]`
-- System: `04_systems/SYS-001-aukro-service.md`
-- Feature: `10_features/FEAT-008-observability-reconciliation.md`
+- System: `docs/04_systems/SYS-001-aukro-service.md`
+- Feature: `docs/10_features/FEAT-008-observability-reconciliation.md`
 - Task: `[MISSING: Aukro business-health channel readback task]`
 - Execution Plan: this handoff
 - Coding Prompt: Codex prompt 2026-07-06 Aukro service-owned business-health evidence envelope
@@ -53,9 +53,9 @@ The envelope states the channel invariant for Aukro marketplace availability con
 - `services/aukro-service/src/aukro/offers/offers.service.ts`
 - `services/aukro-service/src/aukro/executor/executor.service.ts`
 - `services/aukro-service/src/aukro/public-api/public-api.client.ts`
-- `16_operations/AUKRO_PLATFORM_RULES.md`
-- `16_operations/INTEGRATIONS.md`
-- `10_features/FEAT-008-observability-reconciliation.md`
+- `docs/16_operations/AUKRO_PLATFORM_RULES.md`
+- `docs/16_operations/INTEGRATIONS.md`
+- `docs/10_features/FEAT-008-observability-reconciliation.md`
 
 ## Preserved Blockers
 

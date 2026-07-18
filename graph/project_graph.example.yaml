@@ -1,340 +1,340 @@
 nodes:
 - id: GOAL-AUKRO-001
   type: Goal
-  path: 01_vision/VISION.md
+  path: docs/01_vision/VISION.md
 - id: SYS-001
   type: System
-  path: 04_systems/SYS-001-aukro-service.md
+  path: docs/04_systems/SYS-001-aukro-service.md
 - id: FEAT-001
   type: Feature
-  path: 10_features/FEAT-001-offer-management.md
+  path: docs/10_features/FEAT-001-offer-management.md
 - id: FEAT-003
   type: Feature
-  path: 10_features/FEAT-003-order-forwarding.md
+  path: docs/10_features/FEAT-003-order-forwarding.md
 - id: FEAT-004
   type: Feature
-  path: 10_features/FEAT-004-aukro-compliance-policy.md
+  path: docs/10_features/FEAT-004-aukro-compliance-policy.md
 - id: FEAT-005
   type: Feature
-  path: 10_features/FEAT-005-catalog-warehouse-publisher.md
+  path: docs/10_features/FEAT-005-catalog-warehouse-publisher.md
 - id: FEAT-006
   type: Feature
-  path: 10_features/FEAT-006-ai-human-workbench.md
+  path: docs/10_features/FEAT-006-ai-human-workbench.md
 - id: FEAT-009
   type: Feature
-  path: 10_features/FEAT-009-service-integration-clients.md
+  path: docs/10_features/FEAT-009-service-integration-clients.md
 - id: TASK-001
   type: Task
-  path: 11_tasks/TASK-001-implement-ips-governance-baseline.md
+  path: docs/11_tasks/TASK-001-implement-ips-governance-baseline.md
 - id: EP-TASK-001
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-001.md
+  path: docs/21_execution_plans/EP-TASK-001.md
 - id: CP-TASK-001
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-001.md
+  path: docs/13_context_packages/CP-TASK-001.md
 - id: PROMPT-TASK-001
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-001.md
+  path: docs/14_prompts/PROMPT-TASK-001.md
 - id: VAL-TASK-001-ips-governance-baseline
   type: ValidationReport
-  path: 12_validation/VAL-TASK-001-ips-governance-baseline.md
+  path: docs/12_validation/VAL-TASK-001-ips-governance-baseline.md
 - id: ADR-001
   type: ADR
-  path: 07_decisions/ADR-001-markdown-git-source-of-truth.md
+  path: docs/07_decisions/ADR-001-markdown-git-source-of-truth.md
 - id: TASK-002
   type: Task
-  path: 11_tasks/TASK-002-create-ai-commerce-roadmap.md
+  path: docs/11_tasks/TASK-002-create-ai-commerce-roadmap.md
 - id: EP-TASK-002
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md
+  path: docs/21_execution_plans/EP-TASK-002-create-ai-commerce-roadmap.md
 - id: CP-TASK-002
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-002-create-ai-commerce-roadmap.md
+  path: docs/13_context_packages/CP-TASK-002-create-ai-commerce-roadmap.md
 - id: PROMPT-TASK-003-aukro-compliance-policy
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-003-aukro-compliance-policy.md
+  path: docs/14_prompts/PROMPT-TASK-003-aukro-compliance-policy.md
 - id: VAL-TASK-002-create-ai-commerce-roadmap
   type: ValidationReport
-  path: 12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md
+  path: docs/12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md
 - id: TASK-003
   type: Task
-  path: 11_tasks/TASK-003-aukro-compliance-policy.md
+  path: docs/11_tasks/TASK-003-aukro-compliance-policy.md
 - id: EP-TASK-003
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-003-aukro-compliance-policy.md
+  path: docs/21_execution_plans/EP-TASK-003-aukro-compliance-policy.md
 - id: GOAL-IMPACT-TASK-003
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-003.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-003.md
 - id: VAL-TASK-003-aukro-compliance-policy
   type: ValidationReport
-  path: 12_validation/VAL-TASK-003-aukro-compliance-policy.md
+  path: docs/12_validation/VAL-TASK-003-aukro-compliance-policy.md
 - id: TASK-004
   type: Task
-  path: 11_tasks/TASK-004-service-integration-clients.md
+  path: docs/11_tasks/TASK-004-service-integration-clients.md
 - id: EP-TASK-004
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-004-service-integration-clients.md
+  path: docs/21_execution_plans/EP-TASK-004-service-integration-clients.md
 - id: CP-TASK-004
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-004-service-integration-clients.md
+  path: docs/13_context_packages/CP-TASK-004-service-integration-clients.md
 - id: PROMPT-TASK-004-service-integration-clients
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-004-service-integration-clients.md
+  path: docs/14_prompts/PROMPT-TASK-004-service-integration-clients.md
 - id: GOAL-IMPACT-TASK-004
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-004.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-004.md
 - id: VAL-TASK-004-service-integration-clients
   type: ValidationReport
-  path: 12_validation/VAL-TASK-004-service-integration-clients.md
+  path: docs/12_validation/VAL-TASK-004-service-integration-clients.md
 - id: TASK-005
   type: Task
-  path: 11_tasks/TASK-005-catalog-sell-action-draft-model.md
+  path: docs/11_tasks/TASK-005-catalog-sell-action-draft-model.md
 - id: EP-TASK-005
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-005-catalog-sell-action-draft-model.md
+  path: docs/21_execution_plans/EP-TASK-005-catalog-sell-action-draft-model.md
 - id: CP-TASK-005
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-005-catalog-sell-action-draft-model.md
+  path: docs/13_context_packages/CP-TASK-005-catalog-sell-action-draft-model.md
 - id: PROMPT-TASK-005-catalog-sell-action-draft-model
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-005-catalog-sell-action-draft-model.md
+  path: docs/14_prompts/PROMPT-TASK-005-catalog-sell-action-draft-model.md
 - id: GOAL-IMPACT-TASK-005
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-005.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-005.md
 - id: VAL-TASK-005-catalog-sell-action-draft-model
   type: ValidationReport
-  path: 12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md
+  path: docs/12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md
 - id: TASK-006
   type: Task
-  path: 11_tasks/TASK-006-ai-proposal-human-approval.md
+  path: docs/11_tasks/TASK-006-ai-proposal-human-approval.md
 - id: EP-TASK-006
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-006-ai-proposal-human-approval.md
+  path: docs/21_execution_plans/EP-TASK-006-ai-proposal-human-approval.md
 - id: CP-TASK-006
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-006-ai-proposal-human-approval.md
+  path: docs/13_context_packages/CP-TASK-006-ai-proposal-human-approval.md
 - id: PROMPT-TASK-006-ai-proposal-human-approval
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-006-ai-proposal-human-approval.md
+  path: docs/14_prompts/PROMPT-TASK-006-ai-proposal-human-approval.md
 - id: GOAL-IMPACT-TASK-006
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-006.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-006.md
 - id: VAL-TASK-006-ai-proposal-human-approval
   type: ValidationReport
-  path: 12_validation/VAL-TASK-006-ai-proposal-human-approval.md
+  path: docs/12_validation/VAL-TASK-006-ai-proposal-human-approval.md
 - id: FEAT-007
   type: Feature
-  path: 10_features/FEAT-007-ecosystem-revenue-optimization.md
+  path: docs/10_features/FEAT-007-ecosystem-revenue-optimization.md
 - id: FEAT-008
   type: Feature
-  path: 10_features/FEAT-008-observability-reconciliation.md
+  path: docs/10_features/FEAT-008-observability-reconciliation.md
 - id: TASK-007
   type: Task
-  path: 11_tasks/TASK-007-publish-queue-reconciliation.md
+  path: docs/11_tasks/TASK-007-publish-queue-reconciliation.md
 - id: EP-TASK-007
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md
+  path: docs/21_execution_plans/EP-TASK-007-publish-queue-reconciliation.md
 - id: CP-TASK-007
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-007-publish-queue-reconciliation.md
+  path: docs/13_context_packages/CP-TASK-007-publish-queue-reconciliation.md
 - id: PROMPT-TASK-007-publish-queue-reconciliation
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-007-publish-queue-reconciliation.md
+  path: docs/14_prompts/PROMPT-TASK-007-publish-queue-reconciliation.md
 - id: GOAL-IMPACT-TASK-007
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-007.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-007.md
 - id: VAL-TASK-007-publish-queue-reconciliation
   type: ValidationReport
-  path: 12_validation/VAL-TASK-007-publish-queue-reconciliation.md
+  path: docs/12_validation/VAL-TASK-007-publish-queue-reconciliation.md
 - id: TASK-008
   type: Task
-  path: 11_tasks/TASK-008-revenue-analytics-events.md
+  path: docs/11_tasks/TASK-008-revenue-analytics-events.md
 - id: EP-TASK-008
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-008-revenue-analytics-events.md
+  path: docs/21_execution_plans/EP-TASK-008-revenue-analytics-events.md
 - id: CP-TASK-008
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-008-revenue-analytics-events.md
+  path: docs/13_context_packages/CP-TASK-008-revenue-analytics-events.md
 - id: PROMPT-TASK-008-revenue-analytics-events
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-008-revenue-analytics-events.md
+  path: docs/14_prompts/PROMPT-TASK-008-revenue-analytics-events.md
 - id: GOAL-IMPACT-TASK-008
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-008.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-008.md
 - id: VAL-TASK-008-revenue-analytics-events
   type: ValidationReport
-  path: 12_validation/VAL-TASK-008-revenue-analytics-events.md
+  path: docs/12_validation/VAL-TASK-008-revenue-analytics-events.md
 - id: TASK-009
   type: Task
-  path: 11_tasks/TASK-009-operator-workbench-api.md
+  path: docs/11_tasks/TASK-009-operator-workbench-api.md
 - id: EP-TASK-009
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-009-operator-workbench-api.md
+  path: docs/21_execution_plans/EP-TASK-009-operator-workbench-api.md
 - id: CP-TASK-009
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-009-operator-workbench-api.md
+  path: docs/13_context_packages/CP-TASK-009-operator-workbench-api.md
 - id: PROMPT-TASK-009-operator-workbench-api
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-009-operator-workbench-api.md
+  path: docs/14_prompts/PROMPT-TASK-009-operator-workbench-api.md
 - id: GOAL-IMPACT-TASK-009
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-009.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-009.md
 - id: VAL-TASK-009-operator-workbench-api
   type: ValidationReport
-  path: 12_validation/VAL-TASK-009-operator-workbench-api.md
+  path: docs/12_validation/VAL-TASK-009-operator-workbench-api.md
 - id: TASK-010
   type: Task
-  path: 11_tasks/TASK-010-workbench-bulk-preview.md
+  path: docs/11_tasks/TASK-010-workbench-bulk-preview.md
 - id: EP-TASK-010
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-010-workbench-bulk-preview.md
+  path: docs/21_execution_plans/EP-TASK-010-workbench-bulk-preview.md
 - id: CP-TASK-010
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-010-workbench-bulk-preview.md
+  path: docs/13_context_packages/CP-TASK-010-workbench-bulk-preview.md
 - id: PROMPT-TASK-010-workbench-bulk-preview
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-010-workbench-bulk-preview.md
+  path: docs/14_prompts/PROMPT-TASK-010-workbench-bulk-preview.md
 - id: GOAL-IMPACT-TASK-010
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-010.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-010.md
 - id: VAL-TASK-010-workbench-bulk-preview
   type: ValidationReport
-  path: 12_validation/VAL-TASK-010-workbench-bulk-preview.md
+  path: docs/12_validation/VAL-TASK-010-workbench-bulk-preview.md
 - id: TASK-011
   type: Task
-  path: 11_tasks/TASK-011-document-aukro-platform-rules.md
+  path: docs/11_tasks/TASK-011-document-aukro-platform-rules.md
 - id: EP-TASK-011
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md
+  path: docs/21_execution_plans/EP-TASK-011-document-aukro-platform-rules.md
 - id: CP-TASK-011-document-aukro-platform-rules
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-011-document-aukro-platform-rules.md
+  path: docs/13_context_packages/CP-TASK-011-document-aukro-platform-rules.md
 - id: PROMPT-TASK-011-document-aukro-platform-rules
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-011-document-aukro-platform-rules.md
+  path: docs/14_prompts/PROMPT-TASK-011-document-aukro-platform-rules.md
 - id: GOAL-IMPACT-TASK-011
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-011.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-011.md
 - id: VAL-TASK-011-document-aukro-platform-rules
   type: ValidationReport
-  path: 12_validation/VAL-TASK-011-document-aukro-platform-rules.md
+  path: docs/12_validation/VAL-TASK-011-document-aukro-platform-rules.md
 - id: TASK-012
   type: Task
-  path: 11_tasks/TASK-012-catalog-content-preview-drafts.md
+  path: docs/11_tasks/TASK-012-catalog-content-preview-drafts.md
 - id: EP-TASK-012
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md
+  path: docs/21_execution_plans/EP-TASK-012-catalog-content-preview-drafts.md
 - id: CP-TASK-012
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-012-catalog-content-preview-drafts.md
+  path: docs/13_context_packages/CP-TASK-012-catalog-content-preview-drafts.md
 - id: PROMPT-TASK-012-catalog-content-preview-drafts
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-012-catalog-content-preview-drafts.md
+  path: docs/14_prompts/PROMPT-TASK-012-catalog-content-preview-drafts.md
 - id: GOAL-IMPACT-TASK-012
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-012.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-012.md
 - id: VAL-TASK-012-catalog-content-preview-drafts
   type: ValidationReport
-  path: 12_validation/VAL-TASK-012-catalog-content-preview-drafts.md
+  path: docs/12_validation/VAL-TASK-012-catalog-content-preview-drafts.md
 - id: TASK-013
   type: Task
-  path: 11_tasks/TASK-013-dashboard-bulk-publish-candidates.md
+  path: docs/11_tasks/TASK-013-dashboard-bulk-publish-candidates.md
 - id: EP-TASK-013
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md
+  path: docs/21_execution_plans/EP-TASK-013-dashboard-bulk-publish-candidates.md
 - id: CP-TASK-013
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-013-dashboard-bulk-publish-candidates.md
+  path: docs/13_context_packages/CP-TASK-013-dashboard-bulk-publish-candidates.md
 - id: PROMPT-TASK-013-dashboard-bulk-publish-candidates
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-013-dashboard-bulk-publish-candidates.md
+  path: docs/14_prompts/PROMPT-TASK-013-dashboard-bulk-publish-candidates.md
 - id: GOAL-IMPACT-TASK-013
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-013.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-013.md
 - id: VAL-TASK-013-dashboard-bulk-publish-candidates
   type: ValidationReport
-  path: 12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md
+  path: docs/12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md
 - id: TASK-014
   type: Task
-  path: 11_tasks/TASK-014-official-aukro-public-api-executor.md
+  path: docs/11_tasks/TASK-014-official-aukro-public-api-executor.md
 - id: EP-TASK-014
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md
+  path: docs/21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md
 - id: CP-TASK-014
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-014-official-aukro-public-api-executor.md
+  path: docs/13_context_packages/CP-TASK-014-official-aukro-public-api-executor.md
 - id: PROMPT-TASK-014-official-aukro-public-api-executor
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-014-official-aukro-public-api-executor.md
+  path: docs/14_prompts/PROMPT-TASK-014-official-aukro-public-api-executor.md
 - id: GOAL-IMPACT-TASK-014
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-014.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-014.md
 - id: VAL-TASK-014-official-aukro-public-api-executor
   type: ValidationReport
-  path: 12_validation/VAL-TASK-014-official-aukro-public-api-executor.md
+  path: docs/12_validation/VAL-TASK-014-official-aukro-public-api-executor.md
 - id: VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness
   type: ValidationReport
-  path: 12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md
+  path: docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md
 - id: TASK-015
   type: Task
-  path: 11_tasks/TASK-015-mp-xml-feed-executor.md
+  path: docs/11_tasks/TASK-015-mp-xml-feed-executor.md
 - id: EP-TASK-015
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md
+  path: docs/21_execution_plans/EP-TASK-015-mp-xml-feed-executor.md
 - id: CP-TASK-015
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-015-mp-xml-feed-executor.md
+  path: docs/13_context_packages/CP-TASK-015-mp-xml-feed-executor.md
 - id: PROMPT-TASK-015-mp-xml-feed-executor
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-015-mp-xml-feed-executor.md
+  path: docs/14_prompts/PROMPT-TASK-015-mp-xml-feed-executor.md
 - id: GOAL-IMPACT-TASK-015
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-015.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-015.md
 - id: VAL-TASK-015-mp-xml-feed-executor
   type: ValidationReport
-  path: 12_validation/VAL-TASK-015-mp-xml-feed-executor.md
+  path: docs/12_validation/VAL-TASK-015-mp-xml-feed-executor.md
 - id: OPS-AUKRO-PUBLIC-API-ACCESS-REQUEST
   type: OperationsDoc
-  path: 16_operations/AUKRO_PUBLIC_API_ACCESS_REQUEST.md
+  path: docs/16_operations/AUKRO_PUBLIC_API_ACCESS_REQUEST.md
 - id: TASK-016
   type: Task
-  path: 11_tasks/TASK-016-orders-create-synthetic-smoke.md
+  path: docs/11_tasks/TASK-016-orders-create-synthetic-smoke.md
 - id: EP-TASK-016
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md
+  path: docs/21_execution_plans/EP-TASK-016-orders-create-synthetic-smoke.md
 - id: CP-TASK-016
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-016-orders-create-synthetic-smoke.md
+  path: docs/13_context_packages/CP-TASK-016-orders-create-synthetic-smoke.md
 - id: PROMPT-TASK-016-orders-create-synthetic-smoke
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-016-orders-create-synthetic-smoke.md
+  path: docs/14_prompts/PROMPT-TASK-016-orders-create-synthetic-smoke.md
 - id: GOAL-IMPACT-TASK-016
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-016.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-016.md
 - id: VAL-TASK-016-orders-create-synthetic-smoke
   type: ValidationReport
-  path: 12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md
+  path: docs/12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md
 - id: VAL-AU2-orders-lifecycle-cabinet-admin-stats
   type: ValidationReport
-  path: 12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md
+  path: docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md
 - id: TASK-017
   type: Task
-  path: 11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md
+  path: docs/11_tasks/TASK-017-catalog-goal25-product-quality-blockers.md
 - id: EP-TASK-017
   type: ExecutionPlan
-  path: 21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md
+  path: docs/21_execution_plans/EP-TASK-017-catalog-goal25-product-quality-blockers.md
 - id: CP-TASK-017
   type: ContextPackage
-  path: 13_context_packages/CP-TASK-017-catalog-goal25-product-quality-blockers.md
+  path: docs/13_context_packages/CP-TASK-017-catalog-goal25-product-quality-blockers.md
 - id: PROMPT-TASK-017-catalog-goal25-product-quality-blockers
   type: CodingPrompt
-  path: 14_prompts/PROMPT-TASK-017-catalog-goal25-product-quality-blockers.md
+  path: docs/14_prompts/PROMPT-TASK-017-catalog-goal25-product-quality-blockers.md
 - id: GOAL-IMPACT-TASK-017
   type: GoalImpact
-  path: 22_goal_impact/GOAL-IMPACT-TASK-017.md
+  path: docs/22_goal_impact/GOAL-IMPACT-TASK-017.md
 - id: VAL-TASK-017-catalog-goal25-product-quality-blockers
   type: ValidationReport
-  path: 12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md
+  path: docs/12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md
 edges:
 - from: TASK-001
   type: impacts_goal

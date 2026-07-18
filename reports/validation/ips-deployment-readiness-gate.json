@@ -24,107 +24,107 @@
     {
       "line": 93,
       "marker": "[MISSING: production Aukro API username/password/API key values in the external secret backend; k8s env and secret refs are wired]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 95,
       "marker": "[MISSING: official numeric rate-limit contract or owner-approved local request budget]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 96,
       "marker": "[MISSING: product-to-Aukro category/attribute mapping completeness for live offers]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 97,
       "marker": "[MISSING: account shipping template selection evidence]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 98,
       "marker": "[UNKNOWN: whether current Aukro account feature flags allow video uploads]",
-      "path": "11_tasks/TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/11_tasks/TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 89,
       "marker": "[MISSING: final public HTTPS feed URL host and access-control strategy]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 90,
       "marker": "[MISSING: complete catalog-to-Aukro MP category/field/shipment/pricelist mapping]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 91,
       "marker": "[MISSING: confirmation that the account can enable running-offer updates in MP automatic import]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 92,
       "marker": "[MISSING: operator-approved MP import settings and rollback plan]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 93,
       "marker": "[MISSING: production media URL readiness for all candidate products]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 94,
       "marker": "[MISSING: official Public API key for TASK-014; TASK-015 is only a fallback lane while that remains blocked]",
-      "path": "11_tasks/TASK-015-mp-xml-feed-executor.md"
+      "path": "docs/11_tasks/TASK-015-mp-xml-feed-executor.md"
     },
     {
       "line": 48,
       "marker": "[MISSING: ORDER_SYNTHETIC_SMOKE_TOKEN]",
-      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+      "path": "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     },
     {
       "line": 76,
       "marker": "[MISSING: ORDER_SYNTHETIC_SMOKE_TOKEN]",
-      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+      "path": "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     },
     {
       "line": 77,
       "marker": "[MISSING: Orders lifecycle read contract authorized for aukro-service role; client method is implemented fail-closed pending Orders endpoint/role approval.]",
-      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+      "path": "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     },
     {
       "line": 78,
       "marker": "[UNKNOWN: real Aukro webhook payload shape.]",
-      "path": "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
+      "path": "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md"
     },
     {
       "line": 215,
       "marker": "[MISSING: repository-local task document for Orders Goal 7.2B]",
-      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
+      "path": "docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
     {
       "line": 216,
       "marker": "[MISSING: repository-local execution plan for Orders Goal 7.2B]",
-      "path": "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
+      "path": "docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md"
     },
     {
       "line": 29,
       "marker": "[MISSING: current public official Aukro WebAPI endpoint, authentication-flow, and per-endpoint rate-limit documentation]",
-      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+      "path": "docs/16_operations/AUKRO_PLATFORM_RULES.md"
     },
     {
       "line": 66,
       "marker": "[MISSING: official numeric rate limits]",
-      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+      "path": "docs/16_operations/AUKRO_PLATFORM_RULES.md"
     },
     {
       "line": 86,
       "marker": "[UNKNOWN: category-specific Aukro exception]",
-      "path": "16_operations/AUKRO_PLATFORM_RULES.md"
+      "path": "docs/16_operations/AUKRO_PLATFORM_RULES.md"
     },
     {
       "line": 192,
       "marker": "[MISSING: ...]",
-      "path": "21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
+      "path": "docs/21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
     },
     {
       "line": 60,
@@ -244,28 +244,28 @@
   ],
   "validation_reports": {
     "matching_reports": [
-      "12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
+      "docs/12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
     ],
     "reports": [
-      "12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md",
-      "12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md",
-      "12_validation/VAL-TASK-001-ips-governance-baseline.md",
-      "12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
-      "12_validation/VAL-TASK-003-aukro-compliance-policy.md",
-      "12_validation/VAL-TASK-004-service-integration-clients.md",
-      "12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md",
-      "12_validation/VAL-TASK-006-ai-proposal-human-approval.md",
-      "12_validation/VAL-TASK-007-publish-queue-reconciliation.md",
-      "12_validation/VAL-TASK-008-revenue-analytics-events.md",
-      "12_validation/VAL-TASK-009-operator-workbench-api.md",
-      "12_validation/VAL-TASK-010-workbench-bulk-preview.md",
-      "12_validation/VAL-TASK-011-document-aukro-platform-rules.md",
-      "12_validation/VAL-TASK-012-catalog-content-preview-drafts.md",
-      "12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md",
-      "12_validation/VAL-TASK-014-official-aukro-public-api-executor.md",
-      "12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
-      "12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md",
-      "12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
+      "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md",
+      "docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md",
+      "docs/12_validation/VAL-TASK-001-ips-governance-baseline.md",
+      "docs/12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
+      "docs/12_validation/VAL-TASK-003-aukro-compliance-policy.md",
+      "docs/12_validation/VAL-TASK-004-service-integration-clients.md",
+      "docs/12_validation/VAL-TASK-005-catalog-sell-action-draft-model.md",
+      "docs/12_validation/VAL-TASK-006-ai-proposal-human-approval.md",
+      "docs/12_validation/VAL-TASK-007-publish-queue-reconciliation.md",
+      "docs/12_validation/VAL-TASK-008-revenue-analytics-events.md",
+      "docs/12_validation/VAL-TASK-009-operator-workbench-api.md",
+      "docs/12_validation/VAL-TASK-010-workbench-bulk-preview.md",
+      "docs/12_validation/VAL-TASK-011-document-aukro-platform-rules.md",
+      "docs/12_validation/VAL-TASK-012-catalog-content-preview-drafts.md",
+      "docs/12_validation/VAL-TASK-013-dashboard-bulk-publish-candidates.md",
+      "docs/12_validation/VAL-TASK-014-official-aukro-public-api-executor.md",
+      "docs/12_validation/VAL-TASK-015-mp-xml-feed-executor.md",
+      "docs/12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md",
+      "docs/12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
     ],
     "status": "pass",
     "target": "TASK-017"

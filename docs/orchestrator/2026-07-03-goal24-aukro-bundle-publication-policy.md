@@ -39,7 +39,7 @@ Therefore Aukro must fail closed for `publicationMode=single_external_listing` w
 ## Catalog Handoff Resolution
 
 - `[RESOLVED/NARROWED: Aukro-owned catalog.bundle.v1 external publication policy handoff]`
-- Aukro-owned policy reference: `16_operations/AUKRO_PLATFORM_RULES.md#catalog-bundle-publication-boundary`.
+- Aukro-owned policy reference: `docs/16_operations/AUKRO_PLATFORM_RULES.md#catalog-bundle-publication-boundary`.
 - Aukro-owned validation reference: `reports/validation/2026-07-03-goal24-aukro-bundle-publication-policy.md`.
 - Runtime policy reference: `aukro.catalog_bundle_publication.v1` emits `CATALOG_BUNDLE_PUBLICATION_FAILED` for `publicationMode=single_external_listing` until a future owner-approved implementation contract exists.
 - Allowed current scope: ordinary component listings may proceed only through existing Aukro product policy gates; `catalog.bundle.v1` may be used only as read-only/operator context and must not publish, queue, regenerate, confirm, mutate, or sync an external Aukro offer/listing/feed row as one bundle listing.

@@ -23,7 +23,7 @@ None.
 
 ## Intent Preservation System
 
-- Read 00_constitution/CONSTITUTION.md, 01_vision/VISION.md, 17_governance/PROJECT_INVARIANTS.md, and 17_governance/AI_AGENT_RULES.md before implementation work.
+- Read docs/00_constitution/CONSTITUTION.md, docs/01_vision/VISION.md, docs/17_governance/PROJECT_INVARIANTS.md, and docs/17_governance/AI_AGENT_RULES.md before implementation work.
 - Do not modify protected intent documents after baseline adoption without a human-approved amendment.
 - Do not change runtime code, Prisma schema, Kubernetes manifests or secrets unless an execution plan explicitly allows it.
 - Every implementation task requires upstream traceability, goal impact, execution plan, sensitive-data classification, validation criteria and gate evidence.
