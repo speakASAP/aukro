@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, ForbiddenException, Get, Header,
 import { AuthResponse, AuthService, AuthUser, CATALOG_PRODUCT_QUALITY_POLICY_ID, CATALOG_PRODUCT_QUALITY_UNAVAILABLE_BLOCKER, CatalogClientService, CatalogProductQualityIssue, CatalogProductReadiness, OrderClientService, PrismaService, JwtAuthGuard } from '@aukro/shared';
 import { OffersService } from '../aukro/offers/offers.service';
 import { FAVICON_ICO } from './favicon.assets';
+import { consentBannerSource, consentCoreSource } from './consent.assets';
 
 interface UiAuthRequest {
   email: string;
@@ -38,6 +39,22 @@ export class UiController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   landing(): string {
     return this.renderShell({ page: 'landing' });
+  }
+
+  // Oba moduly leží pod /ui/, protože consent-banner.js importuje
+  // './consent-core.js' a prohlížeč to řeší vůči stejnému prefixu.
+  @Get('ui/consent-core.js')
+  @Header('Content-Type', 'application/javascript; charset=utf-8')
+  @Header('Cache-Control', 'public, max-age=3600')
+  consentCore(): string {
+    return consentCoreSource;
+  }
+
+  @Get('ui/consent-banner.js')
+  @Header('Content-Type', 'application/javascript; charset=utf-8')
+  @Header('Cache-Control', 'public, max-age=3600')
+  consentBanner(): string {
+    return consentBannerSource;
   }
 
   @Get('favicon.ico')
@@ -2446,6 +2463,19 @@ export class UiController {
       if (state.token) showClient().catch(handleDashboardError);
       else redirectToAuth();
     }
+  </script>
+  <script type="module">
+    import { mountConsentBanner } from '/ui/consent-banner.js';
+    mountConsentBanner({
+      version: 'alfares-consent-v1',
+      policyUrl: 'https://alfares.cz/cs/legal/cookie-policy',
+      text: {
+        title: 'Cookies a úložiště',
+        disclosureBody: 'Ukládáme jen údaje nezbytné pro přihlášení a chod služby. Nepoužíváme analytické ani marketingové cookies.',
+        acknowledge: 'Rozumím',
+        policyLabel: 'Zásady cookies',
+      },
+    });
   </script>
 </body>
 </html>`;
