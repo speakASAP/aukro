@@ -5,6 +5,10 @@
   "private": true,
   "scripts": {
     "start:dev": "concurrently -n \"API-GW,AUKRO\" -c \"blue,yellow\" \"cd services/api-gateway && npm run start:dev\" \"cd services/aukro-service && npm run start:dev\"",
+    "typecheck": "npm run typecheck:shared && npm run typecheck:service && npm run typecheck:gateway",
+    "typecheck:shared": "./shared/node_modules/.bin/tsc --noEmit -p tsconfig.json",
+    "typecheck:service": "./services/aukro-service/node_modules/.bin/tsc --noEmit -p services/aukro-service/tsconfig.json",
+    "typecheck:gateway": "./services/api-gateway/node_modules/.bin/tsc --noEmit -p services/api-gateway/tsconfig.json",
     "reconcile:availability": "npm --prefix services/aukro-service run reconcile:availability --",
     "verify:orders-lifecycle-ui": "node scripts/verify-orders-lifecycle-ui.js",
     "verify:business-health-aukro-channel-contract": "node scripts/verify-business-health-aukro-channel-contract.js"
