@@ -1,6 +1,6 @@
 /**
  * JWT Auth Guard
- * Validates JWT tokens locally (fast, no HTTP calls to auth-microservice)
+ * Validates JWT tokens locally against auth's RS256 public key (fast; JWKS is cached)
  * Falls back to auth-microservice for token refresh operations
  */
 
@@ -12,17 +12,17 @@ import {
 } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { AuthService } from './auth.service';
+import { verifyAuthToken } from './jwt-verifier';
 import { AuthUser } from './auth.interface';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  private readonly jwtSecret: string;
-
   constructor(
     private readonly authService: AuthService, // Keep for potential fallback
   ) {
-    // Get JWT_SECRET from environment directly (ConfigModule is global, but this is more reliable)
-    this.jwtSecret = process.env.JWT_SECRET || this.throwConfigError('JWT_SECRET');
+    // No symmetric secret is read here on purpose. Verification uses auth's public
+    // key via JWKS (see ./jwt-verifier), so this service cannot mint a token it
+    // would itself accept.
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -50,8 +50,8 @@ export class JwtAuthGuard implements CanActivate {
       let decoded: any;
       
       try {
-        // Verify token signature and expiration locally
-        decoded = jwt.verify(token, this.jwtSecret);
+        // Verify token signature and expiration locally against auth's public key (RS256)
+        decoded = await verifyAuthToken(token);
         
         // Check if token is expired (jwt.verify already does this, but double-check)
         if (decoded.exp && decoded.exp < Date.now() / 1000) {
@@ -229,8 +229,5 @@ export class JwtAuthGuard implements CanActivate {
     return type === 'Bearer' ? token : undefined;
   }
 
-  private throwConfigError(key: string): never {
-    throw new Error(`Missing required environment variable: ${key}. Please set JWT_SECRET in your .env file (must match auth-microservice JWT_SECRET).`);
-  }
 }
 
