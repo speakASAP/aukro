@@ -1,3 +1,7 @@
+// `export {}` makes this a module so its top-level const/function names do not
+// collide with sibling specs in the shared tsconfig's global scope.
+export {};
+
 process.env.LOGGING_SERVICE_URL = process.env.LOGGING_SERVICE_URL || 'http://logging-microservice:3209';
 
 const { strict: assert } = require('assert');

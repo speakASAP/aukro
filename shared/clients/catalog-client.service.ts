@@ -87,20 +87,31 @@ export class CatalogClientService {
     return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   }
 
+  /**
+   * CATALOG_SERVICE_TOKEN is the per-pair RS256 principal
+   * (svc-aukro-service--catalog-microservice@internal.alfares.cz), which catalog
+   * verifies through /auth/validate.
+   *
+   * JWT_TOKEN is deliberately NOT in this chain: it holds the shared a2880693
+   * docs-rag credential, which catalog rejects. Falling through to it is exactly
+   * why this lane returned 401 — it turned a missing token into a failed request
+   * instead of a clear configuration error.
+   */
   private serviceAuthorization(): string | null {
     return this.bearerAuthorization(
       process.env.CATALOG_SERVICE_TOKEN ||
-      process.env.JWT_TOKEN ||
       process.env.SERVICE_TOKEN ||
       ''
     );
   }
 
-  private requestOptions(): { headers?: { Authorization: string } } {
+  private requestOptions(): { headers: { Authorization: string } } {
     const authorization = this.serviceAuthorization();
 
     if (!authorization) {
-      return {};
+      // Was `return {}`, which sent an unauthenticated request that surfaced as a
+      // 401 indistinguishable from a rejected credential. Fail loudly instead.
+      throw new HttpException('CATALOG_SERVICE_AUTH_TOKEN_MISSING', HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     return {
@@ -175,16 +186,28 @@ export class CatalogClientService {
   async getProductBySku(sku: string): Promise<any> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/products/sku/${sku}`)
+        this.httpService.get(`${this.baseUrl}/api/products/sku/${sku}`, this.requestOptions())
       );
       if (!response.data.success || !response.data.data) {
         return null;
       }
       return response.data.data;
-    } catch (error: unknown) {
+    } catch (error: any) {
+      // A lookup failure is not "no such SKU": returning null for both made an auth
+      // or transport failure indistinguishable from a genuinely unknown product.
+      const status = error?.response?.status;
+      if (status === HttpStatus.NOT_FOUND) {
+        return null;
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Product not found by SKU ${sku}: ${errorMessage}`, 'CatalogClient');
-      return null;
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Product lookup by SKU failed against catalog-microservice: sku=${sku}, `
+          + `httpStatus=${status ?? 'n/a'}, error=${errorMessage}`,
+        errorStack,
+        'CatalogClient',
+      );
+      throw new HttpException(`Failed to look up product by SKU: ${errorMessage}`, status || HttpStatus.BAD_GATEWAY);
     }
   }
 
@@ -211,7 +234,11 @@ export class CatalogClientService {
       if (query.catalogScope) params.append('catalogScope', query.catalogScope);
       const catalogSources = this.catalogSourcesQuery(query.catalogSources);
       if (catalogSources) params.append('catalogSources', catalogSources);
-      const requestOptions = query.authorization ? this.userRequestOptions(query.authorization) : undefined;
+      // Was `undefined` on the service path, so this call went out unauthenticated
+      // and catalog answered 401 regardless of which credential was configured.
+      const requestOptions = query.authorization
+        ? this.userRequestOptions(query.authorization)
+        : this.requestOptions();
 
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/api/products?${params.toString()}`, requestOptions)
@@ -222,11 +249,20 @@ export class CatalogClientService {
         page: response.data.pagination?.page || 1,
         limit: response.data.pagination?.limit || 20,
       };
-    } catch (error: unknown) {
+    } catch (error: any) {
+      // Was `return { items: [], ... }`, so a 401 was indistinguishable from a
+      // catalog with no matching products — the same shape that hid the 26-day
+      // aukro -> warehouse stock outage.
+      const status = error?.response?.status;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Failed to search products: ${errorMessage}`, errorStack, 'CatalogClient');
-      return { items: [], total: 0, page: 1, limit: 20 };
+      this.logger.error(
+        `Failed to search products against catalog-microservice: httpStatus=${status ?? 'n/a'}, `
+          + `error=${errorMessage}`,
+        errorStack,
+        'CatalogClient',
+      );
+      throw new HttpException(`Failed to search products: ${errorMessage}`, status || HttpStatus.BAD_GATEWAY);
     }
   }
 
@@ -236,7 +272,7 @@ export class CatalogClientService {
   async createProduct(productData: any): Promise<any> {
     try {
       const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/api/products`, productData)
+        this.httpService.post(`${this.baseUrl}/api/products`, productData, this.requestOptions())
       );
       return response.data.data;
     } catch (error: unknown) {
@@ -293,7 +329,7 @@ export class CatalogClientService {
   async getProductPricing(productId: string): Promise<any> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/pricing/product/${productId}/current`)
+        this.httpService.get(`${this.baseUrl}/api/pricing/product/${productId}/current`, this.requestOptions())
       );
       return response.data.data;
     } catch (error) {
@@ -333,7 +369,7 @@ export class CatalogClientService {
   async getProductMedia(productId: string): Promise<any[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/media/product/${productId}`)
+        this.httpService.get(`${this.baseUrl}/api/media/product/${productId}`, this.requestOptions())
       );
       return response.data.data || [];
     } catch (error) {
