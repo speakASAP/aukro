@@ -115,7 +115,7 @@ export class OrderClientService {
   async updateOrderStatus(orderId: string, status: string): Promise<any> {
     try {
       const response = await firstValueFrom(
-        this.httpService.put(this.baseUrl + '/api/orders/' + orderId + '/status', { status }),
+        this.httpService.put(this.baseUrl + '/api/orders/' + orderId + '/status', { status }, this.createOrderRequestOptions()),
       );
       return response.data.data;
     } catch (error: unknown) {
@@ -130,6 +130,7 @@ export class OrderClientService {
     try {
       const response = await firstValueFrom(
         this.httpService.get(this.baseUrl + '/api/orders', {
+          ...this.createOrderRequestOptions(),
           params: {
             channel,
             externalOrderId,
@@ -139,17 +140,55 @@ export class OrderClientService {
       );
       const orders = response.data.data || [];
       return orders.find((order: any) => order.externalOrderId === externalOrderId) || null;
-    } catch (error: unknown) {
-      this.logger.warn('Order not found: ' + externalOrderId, 'OrderClient');
-      return null;
+    } catch (error: any) {
+      // A lookup failure is not "no such order": returning null for both made an
+      // auth/transport outage indistinguishable from an empty result. 404 is the
+      // only status that genuinely means not-found.
+      const status = error?.response?.status;
+      if (status === HttpStatus.NOT_FOUND) {
+        return null;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        'Order lookup failed against orders-microservice: externalOrderId=' + externalOrderId
+          + ', channel=' + channel + ', httpStatus=' + (status ?? 'n/a') + ', error=' + errorMessage,
+        errorStack,
+        'OrderClient',
+      );
+      throw new HttpException('Failed to look up order: ' + errorMessage, status || HttpStatus.BAD_GATEWAY);
     }
   }
 
   private createOrderRequestOptions(): { headers: Record<string, string> } {
+    // Preferred: per-pair RS256 principal
+    // (svc-aukro-service--orders-microservice@internal.alfares.cz), verified by
+    // orders through /auth/validate.
+    const bearer = process.env.ORDERS_SERVICE_TOKEN?.trim();
+    if (bearer) {
+      return {
+        headers: {
+          Authorization: bearer.startsWith('Bearer ') ? bearer : `Bearer ${bearer}`,
+          'x-service-name': 'aukro-service',
+        },
+      };
+    }
+
+    // Cutover fallback: the shared static credential, where orders derives identity
+    // from x-service-name rather than from the token. Retired once this lane is
+    // verified on the Bearer path; loud on every use so it cannot rot unnoticed.
     const token = process.env.AUKRO_INTERNAL_SERVICE_TOKEN?.trim();
     if (!token) {
       throw new HttpException('ORDER_SERVICE_AUTH_TOKEN_MISSING', HttpStatus.SERVICE_UNAVAILABLE);
     }
+
+    this.logger.error(
+      'ORDERS_SERVICE_TOKEN is unset; falling back to the shared static '
+        + 'AUKRO_INTERNAL_SERVICE_TOKEN header for orders-microservice. This credential '
+        + 'is header-authenticated and scheduled for retirement — set ORDERS_SERVICE_TOKEN.',
+      undefined,
+      'OrderClient',
+    );
 
     return {
       headers: {

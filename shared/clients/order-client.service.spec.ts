@@ -96,7 +96,35 @@ async function run() {
     assert.equal(forbiddenRead, null);
     assert.equal(forbiddenHarness.requests.length, 1);
     assert.equal(forbiddenHarness.warnings[0].includes('HTTP_403'), true);
+
+    // Per-pair RS256 lane: when ORDERS_SERVICE_TOKEN is set it must be sent as a
+    // Bearer token and the shared static header must not be sent at all, otherwise
+    // orders would still take identity from x-service-name.
+    process.env.ORDERS_SERVICE_TOKEN = 'test-bearer-token';
+    const bearerHarness = createHarness();
+    await bearerHarness.client.createOrder(baseOrder);
+    assert.equal(bearerHarness.requests[0].options.headers.Authorization, 'Bearer test-bearer-token');
+    assert.equal(bearerHarness.requests[0].options.headers['x-internal-service-token'], undefined);
+    assert.equal(bearerHarness.requests[0].options.headers['x-service-name'], 'aukro-service');
+
+    // An already-prefixed value must not be double-prefixed.
+    process.env.ORDERS_SERVICE_TOKEN = 'Bearer prefixed-token';
+    const prefixedHarness = createHarness();
+    await prefixedHarness.client.createOrder(baseOrder);
+    assert.equal(prefixedHarness.requests[0].options.headers.Authorization, 'Bearer prefixed-token');
+
+    // A failed lookup must not be reported as "no such order".
+    process.env.ORDERS_SERVICE_TOKEN = 'test-bearer-token';
+    const lookupFailure = createHarness({ response: { status: 500 }, message: 'Server error' });
+    await assert.rejects(() => lookupFailure.client.findByExternalId('aukro-order-1', 'aukro'));
+
+    // 404 is the one status that genuinely means not-found.
+    const lookupMissing = createHarness({ response: { status: 404 }, message: 'Not Found' });
+    assert.equal(await lookupMissing.client.findByExternalId('aukro-order-1', 'aukro'), null);
+
+    delete process.env.ORDERS_SERVICE_TOKEN;
   } finally {
+    delete process.env.ORDERS_SERVICE_TOKEN;
     if (previousToken === undefined) {
       delete process.env.AUKRO_INTERNAL_SERVICE_TOKEN;
     } else {
