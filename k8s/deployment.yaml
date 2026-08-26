@@ -56,6 +56,15 @@ spec:
                 secretKeyRef:
                   name: aukro-service-secret
                   key: WAREHOUSE_SERVICE_TOKEN
+            # Per-pair RS256 principal for aukro-service -> orders-microservice.
+            # This pod has no `envFrom: secretRef`, so a key existing in the
+            # ExternalSecret is NOT enough — it reaches the container only when
+            # named here.
+            - name: ORDERS_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: ORDERS_SERVICE_TOKEN
             - name: AUKRO_PUBLIC_API_USERNAME
               valueFrom:
                 secretKeyRef:
