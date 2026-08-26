@@ -19,15 +19,19 @@ export class WarehouseClientService {
   }
 
   private requestOptions() {
+    // JWT_TOKEN is deliberately NOT in this chain: it holds the shared a2880693
+    // docs-rag credential, which warehouse rejects. Falling through to it turned a
+    // missing warehouse token into a 401 instead of a clear configuration error.
     const token = (
       process.env.WAREHOUSE_SERVICE_TOKEN ||
-      process.env.JWT_TOKEN ||
       process.env.SERVICE_TOKEN ||
       ''
     ).trim();
 
     if (!token) {
-      return {};
+      // Was `return {}`, which sent an unauthenticated request and surfaced as a 401
+      // that the callers below swallowed into empty stock.
+      throw new HttpException('WAREHOUSE_SERVICE_AUTH_TOKEN_MISSING', HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     return {
@@ -35,6 +39,30 @@ export class WarehouseClientService {
         Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
       },
     };
+  }
+
+  /**
+   * A failed stock lookup must never be reported as zero stock.
+   *
+   * `getTotalAvailable` returning 0 and `getStockByProduct` returning [] behind a
+   * logger.warn is why an expired WAREHOUSE_SERVICE_TOKEN (exp 2026-07-31) went
+   * unnoticed for 26 days: every product read as out-of-stock and nothing
+   * distinguished that from an auth failure. Only a 404 means "no stock record".
+   */
+  private rethrowStockLookupFailure(error: unknown, productId: string, operation: string): never {
+    const status = (error as any)?.response?.status;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    this.logger.error(
+      `${operation} failed against warehouse-microservice: productId=${productId}, `
+        + `httpStatus=${status ?? 'n/a'}, error=${errorMessage}`,
+      errorStack,
+      'WarehouseClient',
+    );
+    throw new HttpException(
+      `${operation} failed: ${errorMessage}`,
+      status || HttpStatus.BAD_GATEWAY,
+    );
   }
 
   /**
@@ -47,9 +75,10 @@ export class WarehouseClientService {
       );
       return response.data.data || [];
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Stock not found for product ${productId}: ${errorMessage}`, 'WarehouseClient');
-      return [];
+      if ((error as any)?.response?.status === HttpStatus.NOT_FOUND) {
+        return [];
+      }
+      this.rethrowStockLookupFailure(error, productId, 'Stock lookup');
     }
   }
 
@@ -63,9 +92,10 @@ export class WarehouseClientService {
       );
       return response.data.data?.totalAvailable || 0;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Failed to get total stock for product ${productId}: ${errorMessage}`, 'WarehouseClient');
-      return 0;
+      if ((error as any)?.response?.status === HttpStatus.NOT_FOUND) {
+        return 0;
+      }
+      this.rethrowStockLookupFailure(error, productId, 'Total stock lookup');
     }
   }
 
