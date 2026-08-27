@@ -41,11 +41,6 @@ spec:
                 secretKeyRef:
                   name: aukro-service-secret
                   key: JWT_SECRET
-            - name: JWT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: aukro-service-secret
-                  key: JWT_TOKEN
             - name: AUKRO_INTERNAL_SERVICE_TOKEN
               valueFrom:
                 secretKeyRef:
