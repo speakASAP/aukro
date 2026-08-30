@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "repository": "aukro",
+  "profile": "service",
+  "project_registration": {
+    "runlayer_project_slug": null,
+    "runlayer_permalink": null,
+    "status": "unverified",
+    "warning": "No verified canonical RunLayer project mapping is documented in this repository."
+  },
+  "collectable_paths": [
+    "AGENTS.md",
+    "AGENT_OPERATIONS.md",
+    "BUSINESS.md",
+    "STATE.json",
+    "SYSTEM.md",
+    "TASKS.md",
+    "docs/registry/ARTIFACT_INDEX.json",
+    "docs/registry/REPOSITORY_PROFILE.json",
+    "docs/registry/validation/2026-08-30-wave0-v1-validation.json"
+  ],
+  "excluded_path_patterns": [
+    ".env*",
+    "**/*.key",
+    "**/*.pem",
+    "**/coverage/**",
+    "**/customer-data/**",
+    "**/dumps/**",
+    "**/node_modules/**",
+    "**/raw-logs/**",
+    "**/runtime/**",
+    "**/secrets/**",
+    "deploy.config.sh",
+    "k8s/**",
+    "logs/**",
+    "scripts/deploy.sh",
+    "services/**"
+  ],
+  "owners": {
+    "business_intent": "human",
+    "technical_system": "service maintainers",
+    "planning_state": "coordinator-maintained",
+    "integration": "service maintainers",
+    "registry_contract": "wave-0 maintainers"
+  }
+}

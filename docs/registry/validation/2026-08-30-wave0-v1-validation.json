@@ -1,0 +1,58 @@
+{
+  "validation_id": "VAL-WAVE0-AUKRO-2026-08-30",
+  "repository": "aukro",
+  "scope": "Wave 0 v1 docs-only planning registry adoption",
+  "executed_at": "2026-08-30T21:46:14Z",
+  "inputs": {
+    "repository_documents": [
+      "AGENTS.md",
+      "AGENT_OPERATIONS.md",
+      "BUSINESS.md",
+      "STATE.json",
+      "SYSTEM.md",
+      "TASKS.md"
+    ],
+    "shared_contract_documents": [
+      "docs/standardization/wave-0/README.md",
+      "docs/standardization/wave-0/schemas/v1/state.schema.json",
+      "docs/standardization/wave-0/schemas/v1/repository-profile.schema.json",
+      "docs/standardization/wave-0/schemas/v1/artifact-index.schema.json",
+      "docs/standardization/wave-0/examples/v1/STATE.example.json",
+      "docs/standardization/wave-0/examples/v1/REPOSITORY_PROFILE.example.json",
+      "docs/standardization/wave-0/examples/v1/ARTIFACT_INDEX.example.json"
+    ]
+  },
+  "checks": [
+    {
+      "check": "validate_repository_profile",
+      "status": "ok",
+      "command": "python3 /home/ssf/Documents/Github/shared/scripts/validate-repository-profile.py --root . --json"
+    },
+    {
+      "check": "artifact_index_canonical_check",
+      "status": "ok",
+      "command": "python3 /home/ssf/Documents/Github/shared/scripts/build-artifact-index.py --root . --check --json"
+    },
+    {
+      "check": "json_parse",
+      "status": "ok",
+      "command": "python3 -m json.tool on Wave 0 registry files"
+    },
+    {
+      "check": "placeholder_scan",
+      "status": "ok",
+      "command": "rg placeholder marker scan on Wave 0 registry files",
+      "matches": 0
+    },
+    {
+      "check": "forbidden_reference_scan",
+      "status": "ok",
+      "command": "rg forbidden reference scan on Wave 0 registry files",
+      "matches": 0
+    }
+  ],
+  "runlayer_mapping": {
+    "status": "unverified",
+    "details": "No verified canonical RunLayer project mapping is documented in repository sources."
+  }
+}

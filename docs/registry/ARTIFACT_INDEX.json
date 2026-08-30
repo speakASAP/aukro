@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "repository": "aukro",
+  "generated_at": "2026-08-30T21:46:14Z",
+  "artifacts": [
+    {
+      "id": "VAL-WAVE0-AUKRO-2026-08-30",
+      "type": "validation",
+      "status": "validated",
+      "title": "Wave 0 v1 planning registry adoption validation",
+      "path": "docs/registry/validation/2026-08-30-wave0-v1-validation.json",
+      "parent_ids": [],
+      "updated_at": "2026-08-30T21:46:14Z"
+    }
+  ],
+  "warnings": []
+}
