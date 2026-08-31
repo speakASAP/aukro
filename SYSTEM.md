@@ -1,81 +1,52 @@
-# System: aukro-service
+# SYSTEM.md
 
-## Architecture
+completeness_level: complete
 
-NestJS + PostgreSQL + Prisma. Aukro REST API integration.
+status: validated
 
-- Create/update offers from catalog products
-- Multi-account support
-- Subscribes to `stock.updated` via RabbitMQ → updates Aukro offer quantities
-- Receives Aukro orders → forwards to orders-microservice
+## Purpose
+Aukro integration keeps the Aukro marketplace aligned with the shared catalog, stock, and order contracts.
 
-## Service Ports
+## Responsibilities
+- synchronize marketplace product data from the shared catalog and warehouse contracts
+- consume shared event-bus updates that affect stock and marketplace states
+- forward relevant order workflows into the shared orders microservice
 
-| Role | Port |
-|------|------|
-| aukro-service (app) | 3700 |
-| api-gateway | 3701 |
-| gateway-proxy | 3704 |
+## Non-responsibilities
+- ownership of payment settlement or invoicing
+- creation of a new catalog source of truth
+- direct local order lifecycle management
 
-## Integrations
+## Inputs
+- catalog and stock state from the shared ecosystem
+- event-bus signals such as stock.updated
+- platform monitoring and logging outputs
 
-| Service | Port | Usage |
-|---------|------|-------|
-| database-server | 5432 | PostgreSQL (`aukro_db`) |
-| logging-microservice | 3367 | Structured logs |
-| auth-microservice | 3370 | JWT validation |
-| catalog-microservice | 3200 | Product data (validation before offer creation) |
-| warehouse-microservice | 3201 | Stock sync via RabbitMQ |
-| orders-microservice | 3203 | Forward received Aukro orders |
-| notifications-microservice | 3368 | Order alerts |
+## Outputs
+- marketplace synchronization actions
+- operational health and traceability evidence
+- valid repo-level governance records
 
-## Events
+## Dependencies
+- catalog-microservice
+- warehouse-microservice
+- orders-microservice
+- logging-microservice
+- monitoring-microservice
+- shared event bus
 
-| Event | Direction | Action |
-|-------|-----------|--------|
-| `stock.updated` | subscribe | Update Aukro offer quantities |
-| `order.created` / `order.updated` | subscribe | Sync order state |
+## Upstream traceability
+This repo follows the same project governance model and shared platform contracts used across the Alfares ecosystem.
 
-## Database
+## Downstream artifacts
+- README.md
+- docs/06_architecture/INTEGRATION_CONTRACT.md
+- STATE.json
 
-DB name: `aukro_db`
+## Validation criteria
+- required integrations are explicit and truthful
+- not-applicable decisions are documented honestly
+- the central validator passes in the planning phase
 
-| Table | Purpose |
-|-------|---------|
-| `AukroAccount` | Aukro account credentials |
-| `AukroOffer` | Offers linked to catalog products |
-| `AukroOrder` | Orders received from Aukro (transit — forwarded to orders-microservice) |
-
-## Secrets
-
-All secrets in Vault at `secret/prod/aukro-service`, synced to K8s via ESO → K8s Secret `aukro-service-secret` in namespace `statex-apps`.
-
-Synced secrets: `DATABASE_URL`, `JWT_SECRET`, `PAYMENT_API_KEY`, `PAYMENT_APPLICATION_ID`, `PAYMENT_WEBHOOK_API_KEY`.
-
-→ See `k8s/external-secret.yaml` for full mapping.
-
-## Deployment
-
-K8s (primary): `statex-apps` namespace, rolling update (maxUnavailable=0).
-
-```bash
-# Build + push + roll
-./scripts/deploy.sh
-
-# Check status
-kubectl -n statex-apps rollout status deployment/aukro-service
-
-# Logs
-kubectl -n statex-apps logs -l app=aukro-service -f
-```
-
-→ K8s manifests: `k8s/`  
-→ Ecosystem deploy standard: `../shared/docs/DEPLOY_STANDARD.md`
-
-## Current State
-<!-- AI-maintained -->
-Stage: production
-
-## Known Issues
-<!-- AI-maintained -->
-- None
+## Open questions
+- confirm exact Aukro API payload mappings for the production integration flow

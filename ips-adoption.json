@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "profile": "runtime-service",
+  "project": {
+    "name": "aukro",
+    "repository": "https://github.com/speakASAP/aukro"
+  },
+  "standard": {
+    "repository": "https://github.com/speakASAP/intent-preservation-system",
+    "revision": "unknown"
+  },
+  "artifacts": {
+    "readme": "README.md",
+    "business": "BUSINESS.md",
+    "system": "SYSTEM.md",
+    "agents": "AGENTS.md",
+    "operations": "AGENT_OPERATIONS.md",
+    "claude": "CLAUDE.md",
+    "tasks": "TASKS.md",
+    "state": "STATE.json",
+    "constitution": "docs/00_constitution/CONSTITUTION.md",
+    "vision": "docs/01_vision/VISION.md",
+    "integrationContract": "docs/06_architecture/INTEGRATION_CONTRACT.md",
+    "projectInvariants": "docs/17_governance/PROJECT_INVARIANTS.md",
+    "validationDebt": "docs/orchestrator/VALIDATION_DEBT.md",
+    "bootstrapTask": "docs/11_tasks/TASK-001-bootstrap-service.md",
+    "bootstrapGoalImpact": "docs/22_goal_impact/GOAL-IMPACT-TASK-001.md",
+    "bootstrapExecutionPlan": "docs/21_execution_plans/EP-TASK-001-bootstrap-service.md",
+    "bootstrapValidation": "docs/12_validation/VAL-TASK-001-bootstrap-service.md"
+  },
+  "integrationReview": [
+    {
+      "capability": "auth",
+      "component": "auth-microservice",
+      "decision": "required",
+      "reason": "The Aukro integration needs authenticated access.",
+      "contract": "Marketplace access and request handling are restricted to authenticated marketplace operations.",
+      "configuration": "Repository-local configuration and platform references for the access boundary are kept with the project runtime config.",
+      "failureMode": "The service fails closed and reports the real condition without claiming successful marketplace processing.",
+      "validation": "The central IPS validator confirms the required auth dependency and the repo remains honest about the boundary."
+    },
+    {
+      "capability": "postgres",
+      "component": "db-server-postgres",
+      "decision": "required",
+      "reason": "The repo uses the shared PostgreSQL platform.",
+      "contract": "Project state is persisted in the shared PostgreSQL boundary owned by the platform.",
+      "configuration": "Repository-local configuration and platform references for the shared database dependency.",
+      "failureMode": "The service fails closed and reports the real condition without claiming persistence success.",
+      "validation": "The central IPS validator confirms the required PostgreSQL dependency and honest project scope."
+    },
+    {
+      "capability": "redis",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "No Redis dependency is required for this repo.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "logging",
+      "component": "logging-microservice",
+      "decision": "required",
+      "reason": "Structured logs are required for the service.",
+      "contract": "Operational events are emitted to the shared logging and observability boundary.",
+      "configuration": "Repository-local configuration and platform references for the shared logging dependency.",
+      "failureMode": "The service fails closed and records the real operational problem in the platform logs.",
+      "validation": "The central IPS validator confirms the required logging dependency and honest repo scope."
+    },
+    {
+      "capability": "notifications",
+      "component": "notifications-microservice",
+      "decision": "required",
+      "reason": "Notifications are part of the workflow.",
+      "contract": "Marketplace operational events are signaled through the shared notifications boundary.",
+      "configuration": "Repository-local configuration and platform references for the shared notifications dependency.",
+      "failureMode": "The service records the event and surfaces the real condition rather than claiming delivery success.",
+      "validation": "The central IPS validator confirms the required notification dependency and honest repo scope."
+    },
+    {
+      "capability": "ai",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "No AI workflow is required.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "payments",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "Payment capture is outside scope.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "catalog",
+      "component": "catalog-microservice",
+      "decision": "required",
+      "reason": "The repo uses the shared catalog contract.",
+      "contract": "Marketplace offer state is validated against the shared catalog boundary before changes are applied.",
+      "configuration": "Repository-local configuration and platform references for the required catalog dependency.",
+      "failureMode": "The service refuses unsafe updates and records the real condition without inventing catalog success.",
+      "validation": "The central IPS validator confirms the required catalog dependency and honest repo scope."
+    },
+    {
+      "capability": "orders",
+      "component": "orders-microservice",
+      "decision": "required",
+      "reason": "Relevant orders are forwarded through the shared orders service.",
+      "contract": "Order workflows are forwarded to the shared orders domain rather than managed as a parallel local order lifecycle.",
+      "configuration": "Repository-local configuration and platform references for the required orders dependency.",
+      "failureMode": "The service fails closed and records the real order-forwarding condition without claiming completion.",
+      "validation": "The central IPS validator confirms the required orders dependency and honest repo scope."
+    },
+    {
+      "capability": "warehouse",
+      "component": "warehouse-microservice",
+      "decision": "required",
+      "reason": "Stock updates drive the marketplace sync.",
+      "contract": "Stock and inventory state is consumed from the shared warehouse boundary and reflected into marketplace processing.",
+      "configuration": "Repository-local configuration and platform references for the required warehouse dependency.",
+      "failureMode": "The service records the actual stock-validation condition without claiming stock sync success.",
+      "validation": "The central IPS validator confirms the required warehouse dependency and honest repo scope."
+    },
+    {
+      "capability": "invoices",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "Invoice ownership is out of scope.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "object-storage",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "No object-storage ownership.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "event-bus",
+      "component": "rabbitmq",
+      "decision": "required",
+      "reason": "The repository reacts to stock.updated and related event-bus messages.",
+      "contract": "Shared marketplace events are consumed through the platform event bus to keep stock and offer synchronization aligned.",
+      "configuration": "Repository-local configuration and platform references for the shared event-bus dependency.",
+      "failureMode": "The service records the actual event processing failure and does not claim a successful update.",
+      "validation": "The central IPS validator confirms the required event-bus dependency and honest repo scope."
+    },
+    {
+      "capability": "docs-rag",
+      "component": "docs-rag-microservice",
+      "decision": "required",
+      "reason": "The repo must remain searchable and traceable in the shared docs index.",
+      "contract": "Repository documentation and governance records are discoverable through the shared docs-RAG boundary.",
+      "configuration": "Repository-local and platform configuration for docs indexing and search maintenance.",
+      "failureMode": "The project reports a real searchability or indexing gap without claiming working docs integration.",
+      "validation": "The central IPS validator confirms the required docs-RAG dependency and honest repo scope."
+    },
+    {
+      "capability": "monitoring",
+      "component": "monitoring-microservice",
+      "decision": "required",
+      "reason": "Health and operational evidence must be visible through the monitoring platform.",
+      "contract": "Service health and key operational signals are exposed via the shared monitoring boundary.",
+      "configuration": "Repository-local configuration and platform references for the required monitoring dependency.",
+      "failureMode": "The service records the monitored failure condition and does not claim a healthy state.",
+      "validation": "The central IPS validator confirms the required monitoring dependency and honest repo scope."
+    },
+    {
+      "capability": "backups",
+      "component": "not-applicable",
+      "decision": "not-applicable",
+      "reason": "No backup ownership exists for this repository.",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    }
+  ]
+}

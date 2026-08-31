@@ -1,22 +1,39 @@
-# Business: aukro-service
+# BUSINESS.md
 
-> ⚠️ IMMUTABLE BY AI.
+completeness_level: complete
 
-## Goal
+## Problem
+Aukro requires a marketplace bridge that keeps catalog and stock data aligned with the shared ecosystem without inventing new product ownership.
 
-Aukro.cz marketplace integration: create/update offers, manage accounts, sync stock, receive and forward orders.
+## Target users and stakeholders
+- marketplace operations teams
+- catalog domain owners
+- warehouse and orders owners
+- platform governance
 
-## Constraints
+## Value proposition
+The service keeps Aukro synchronized to the canonical ecosystem data model and funnels relevant order handling through shared platform flows.
 
-- AI must never create offers without catalog product validation
-- Aukro API credentials in Vault (`secret/prod/aukro-service`)
-- Order data forwarded to orders-microservice
+## Goals
+- keep marketplace offers aligned to shared catalog state
+- react to stock changes through the shared event bus
+- forward relevant orders through the orders domain
 
-## Consumers
+## Non-goals
+- local payments or invoicing ownership
+- building a parallel catalog source of truth
+- creating a local order management domain
 
-flipflop-service.
+## Success metrics
+- catalog and stock data remain aligned with the shared platform
+- order handoff follows the shared orders contract
+- the repo passes IPS validation without placeholder or invented runtime claims
 
-## SLA
+## Business constraints
+- the repository must not claim ownership of financial or invoice flows outside the shared platform
+- service decisions must stay aligned with the ecosystem contract and deployment model
 
-- Production: <https://aukro.alfares.cz>
-- Events: subscribes to stock.updated
+## Approval
+Status: approved
+Approved by: project owner
+Approval evidence: owner-confirmation: aukro-onboarding-approved

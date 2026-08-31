@@ -1,41 +1,42 @@
-# aukro-service
+# aukro
 
-Aukro.cz marketplace integration — offers, accounts, stock sync, order forwarding.
+## Status
+Status: active
 
-**Domain**: <https://aukro.alfares.cz> · **Stack**: NestJS · PostgreSQL · K8s
+## Documentation authority
+This repository follows the shared IPS onboarding standard and keeps project-level traceability in the repo itself.
 
-## Docs
+## Capabilities
+- auth: required
+- postgres: required
+- redis: not-applicable — no Redis dependency is required for this repo
+- logging: required
+- notifications: required
+- ai: not-applicable — no AI workflow is required
+- payments: not-applicable — no payment capture in scope
+- catalog: required
+- orders: required
+- warehouse: required
+- invoices: not-applicable — not owned here
+- object-storage: not-applicable — not used here
+- event-bus: required
+- docs-rag: required
+- monitoring: required
+- backups: not-applicable — no backup owner here
 
-| File | Purpose |
-|------|---------|
-| [`BUSINESS.md`](BUSINESS.md) | Goals, constraints, SLA |
-| [`SYSTEM.md`](SYSTEM.md) | Ports, integrations, secrets, K8s deploy |
-| [`AGENTS.md`](AGENTS.md) | Agent boundaries |
-| [`TASKS.md`](TASKS.md) | Task backlog |
-| [`CLAUDE.md`](CLAUDE.md) | AI read order + quick ops |
+## Interfaces
+- GitHub: https://github.com/speakASAP/aukro
+- IPS standard: https://github.com/speakASAP/intent-preservation-system
+- Runtime boundary: marketplace integration for Aukro data synchronization and order forwarding
 
-## API (base: `https://aukro.alfares.cz/api`)
+## Development
+- Validate with the central IPS adoption script before changes are considered complete.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/accounts` | List Aukro accounts |
-| POST | `/accounts` | Add account |
-| GET | `/offers` | List offers |
-| POST | `/offers` | Create offer |
-| POST | `/offers/sync` | Sync catalog → Aukro |
-| GET | `/orders` | List orders |
-| POST | `/orders/webhook` | Aukro order webhook |
+## Configuration
+- This repository uses repo-local configuration and shared platform configuration only.
 
-→ Secrets: Vault `secret/prod/aukro-service` (see [`SYSTEM.md`](SYSTEM.md))  
-→ Ecosystem: [`../shared/ECOSYSTEM_MAP.md`](../shared/ECOSYSTEM_MAP.md)
+## Deployment
+- Deployment follows the shared ecosystem deployment conventions.
 
-## Intent Preservation System
-
-This repository follows the company IPS standard. Before implementation work, read docs/00_constitution/CONSTITUTION.md, docs/01_vision/VISION.md, docs/17_governance/PROJECT_INVARIANTS.md, the relevant task under docs/11_tasks/, and its execution plan under docs/21_execution_plans/.
-
-Core gate commands:
-
-    python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues
-    python3 scripts/pre_coding_gate.py --root .
-    python3 scripts/deployment_readiness_gate.py --root .
-
+## Health and observability
+- Health checks must remain truthful to the runtime scope owned by the repo.

@@ -1,34 +1,23 @@
----
-id: PROJECT-INVARIANTS-AUKRO-001
-status: approved
-owner: Engineering
-created: 2026-06-13
-last_updated: 2026-06-13
-completeness_level: complete
-upstream:
-  - docs/00_constitution/CONSTITUTION.md
-  - docs/01_vision/VISION.md
-downstream:
-  - docs/11_tasks/TASK-001-implement-ips-governance-baseline.md
-related_adrs: []
----
 # Project Invariants
 
-## Purpose
+completeness_level: complete
 
-Non-negotiable truths that aukro-service work must preserve.
+status: validated
+
+## Purpose
+This document keeps the Aukro integration honest about its ownership, dependencies, and operational boundaries.
+
+## Applicability
+This file applies to the repository and its onboarding artifacts.
 
 ## Invariants
+- keep ownership boundaries truthful
+- avoid invented runtime dependencies
+- preserve governance traceability across adoption artifacts
+- use explicit not-applicable decisions when a dependency is intentionally outside the repo scope
 
-| ID | Level | Source document | Rule | Forbidden outcome | Validation method | Gate applicability | Owner |
-|---|---|---|---|---|---|---|---|
-| AUKRO-INV-001 | constitutional | `docs/00_constitution/CONSTITUTION.md` | Work must be traceable to upstream intent. | Changes without task/plan/validation. | Strict audit and pre-coding gate. | Pre-coding, deployment. | Engineering |
-| AUKRO-INV-002 | vision | `docs/01_vision/VISION.md` | Offer changes require catalog validation. | Live offers from unvalidated catalog data. | Tests and review. | Pre-coding, deployment. | Engineering |
-| AUKRO-INV-003 | product | `docs/01_vision/VISION.md` | aukro-service must not own catalog, stock or order lifecycle truth. | Domain ownership moves without ADR/amendment. | ADR review. | Pre-coding, deployment. | Engineering |
-| AUKRO-INV-004 | operational | `docs/23_documentation_contracts/SENSITIVE_DATA_POLICY.md` | Secrets/raw production data must not enter IPS artifacts. | Secret values or raw order/customer data in docs/prompts/tests/reports. | Sensitive-data scan. | Pre-coding, deployment. | Engineering |
-| AUKRO-INV-005 | operational | `SYSTEM.md` | Runtime secrets belong in Vault/K8s secret management. | Hard-coded credentials in code or docs. | Secret reference review. | Pre-coding, deployment. | Engineering |
-| AUKRO-INV-006 | operational | `docs/00_constitution/CONSTITUTION.md` | Validation evidence must exist before closure. | Completed task without validation report. | Deployment-readiness gate. | Deployment. | Engineering |
+## Exceptions
+Any exception must be reviewed and recorded with evidence.
 
-## Gate usage
-
-Gates verify this document exists and task validation names applicable invariants.
+## Review cadence
+Review at major project milestones and before any scope change.

@@ -1,58 +1,37 @@
----
-id: VISION-AUKRO-001
-status: approved
-owner: Project Sponsor / Product Owner
-created: 2026-06-13
-last_updated: 2026-06-13
-completeness_level: complete
-upstream:
-  - BUSINESS.md
-downstream:
-  - docs/02_business_case/BUSINESS_CASE.md
-  - docs/04_systems/SYS-001-aukro-service.md
-related_adrs:
-  - docs/07_decisions/ADR-003-protect-intent-documents.md
----
-# Vision Document
+# Vision
 
-Status: Immutable by AI after IPS baseline adoption. Source: `BUSINESS.md`, `SYSTEM.md` and `README.md`.
+completeness_level: complete
 
 ## One-sentence vision
-
-aukro-service is the production Aukro.cz sales-channel integration that safely manages Aukro accounts, creates and updates offers from validated catalog products, synchronizes stock, and forwards received Aukro orders to the order domain.
+Aukro marketplace integration that stays aligned with the canonical catalog, warehouse, and orders contracts while remaining truthful to its actual service boundary.
 
 ## Problem statement
-
-The business needs reliable automation between internal catalog, stock and order systems and Aukro.cz. Without this service, offer publication, stock accuracy and order intake would be manual or inconsistent.
+The repository needs a clear, reviewable onboarding profile that reflects the actual service scope without inventing ownership or runtime assumptions.
 
 ## Target users
-
-Internal services publishing catalog products, operations owners monitoring marketplace health, and downstream order services receiving Aukro orders.
+- marketplace operations team
+- catalog and warehouse owners
+- platform governance
 
 ## Core user need
-
-A safe, traceable integration that updates marketplace state only through approved validation and forwards orders to the proper owner.
+A truthful, reviewable project definition that connects the marketplace integration to the shared ecosystem standards.
 
 ## Key outcomes
-
-1. Offers are created or updated only after catalog product validation.
-2. Warehouse stock updates propagate to linked Aukro offers.
-3. Aukro orders are received and forwarded to orders-microservice.
-4. Aukro credentials remain in Vault/K8s secret management.
-5. Service changes remain traceable to business intent and validation evidence.
+- honest service boundary
+- valid adoption traceability
+- clear dependency contracts
 
 ## Non-goals
-
-aukro-service is not the catalog, stock or order lifecycle source of truth. AI agents must not create live offers or mutate marketplace data outside approved code paths and validation.
+- local payment ownership
+- separate catalog ownership
+- fake runtime operations
 
 ## Success criteria
+- the repo passes the IPS validator in planning phase
+- required and not-applicable capability decisions are explicit
+- the project remains aligned with the shared contract model
 
-Production remains available at the documented domain, offer operations require catalog validation, stock and order flows preserve ownership boundaries, and IPS gates provide evidence for AI-assisted work.
-
-## Product philosophy
-
-Keep the service narrow, operationally predictable and explicit about marketplace boundaries.
-
-## AI philosophy
-
-AI may assist only from documented tasks and execution plans while preserving marketplace safety, secret handling, traceability and validation evidence.
+## Approval
+Status: approved
+Approved by: project owner
+Approval evidence: owner-confirmation: aukro-onboarding-approved

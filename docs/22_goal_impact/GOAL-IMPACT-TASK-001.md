@@ -1,26 +1,23 @@
----
-id: GOAL-IMPACT-TASK-001
-artifact_type: task
-artifact_id: TASK-001
-artifact_path: ../11_tasks/TASK-001-implement-ips-governance-baseline.md
-primary_goal: docs/01_vision/VISION.md
-impact_level: enabling
+# GOAL-IMPACT-TASK-001
+
 status: validated
-upstream_links:
-  - docs/01_vision/VISION.md
-  - docs/02_business_case/BUSINESS_CASE.md
-  - docs/10_features/FEAT-001-offer-management.md
----
-# GOAL-IMPACT-TASK-001: IPS Governance Baseline
 
-## Explanation
+## Goal
+Document and validate the real onboarding profile for the Aukro marketplace integration.
 
-TASK-001 enables safer future delivery by making existing Aukro.cz integration intent explicit, traceable and enforceable through local gates. It does not alter runtime behavior.
+## Contribution
+This task makes the repo’s service boundary and dependencies explicit and traceable.
 
-## Evidence
+## Success metric
+The IPS validator passes in the planning phase and the repo keeps its adoption profile truthful.
 
-`docs/01_vision/VISION.md`, `docs/02_business_case/BUSINESS_CASE.md`, `docs/11_tasks/TASK-001-implement-ips-governance-baseline.md`, `docs/21_execution_plans/EP-TASK-001.md`, `docs/12_validation/VAL-TASK-001-ips-governance-baseline.md`.
+## Invariant compatibility
+The task remains compatible with the project invariant to avoid invented runtime claims.
 
-## Validation
+## Upstream and downstream links
+- Upstream: ../11_tasks/TASK-001-bootstrap-service.md
+- Downstream: ../21_execution_plans/EP-TASK-001-bootstrap-service.md
+- Validation: ../12_validation/VAL-TASK-001-bootstrap-service.md
 
-Valid if documentation gates pass and runtime files remain outside task scope.
+## Validation method
+The central IPS script validates the repository after completion of the adoption profile.
