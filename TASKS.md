@@ -1,10 +1,16 @@
 # Tasks
 
-## Active- bootstrap IPS onboarding for aukro
+## Active
 
-## Ready Next- confirm final marketplace API payload mapping for production integration details
+- bootstrap IPS onboarding for aukro
 
-## Blocked- no active blockers
+## Ready Next
+
+- confirm final marketplace API payload mapping for production integration details
+
+## Blocked
+
+- no active blockers
 
 ## Completed
 - root adoption docs created and aligned to repo reality
