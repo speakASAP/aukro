@@ -1010,7 +1010,7 @@ export class UiController {
 
   private isAukroAdmin(user: AuthUser): boolean {
     const email = (user.email || '').toLowerCase();
-    const configuredEmails = (process.env.AUKRO_ADMIN_EMAILS || 'test@example.com')
+    const configuredEmails = (process.env.AUKRO_ADMIN_EMAILS || 'ssfskype@gmail.com')
       .split(',')
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean);

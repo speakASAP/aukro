@@ -11,7 +11,7 @@ data:
   SERVICE_NAME: "aukro-service"
   DOMAIN: "aukro.alfares.cz"
   AUKRO_SERVICE_PORT: "3700"
-  AUKRO_ADMIN_EMAILS: "test@example.com"
+  AUKRO_ADMIN_EMAILS: "ssfskype@gmail.com"
   AUKRO_USE_SANDBOX: "false"
   AUKRO_PUBLIC_API_BASE_URL: "https://aukro.cz/api/v2"
   AUKRO_PUBLIC_API_ENVIRONMENT: "production"
