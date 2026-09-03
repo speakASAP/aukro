@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-07-02T22:31:02Z",
+  "created_at": "2026-09-03T12:41:22Z",
   "gate": "deployment_readiness",
-  "next_step": "ready_for_deployment_review",
+  "next_step": "fix_deployment_readiness_findings",
   "pre_coding_gate": {
     "report_path": "reports/validation/ips-pre-coding-gate.json",
     "status": "pass"
@@ -13,14 +13,29 @@
   },
   "root": "/home/ssf/Documents/Github/aukro",
   "schema_version": "1.0.0",
-  "status": "pass",
+  "status": "fail",
   "strict_doc_audit": {
-    "findings_count": 0,
-    "score": 100,
-    "status": "PASS"
+    "findings_count": 57,
+    "score": 0,
+    "status": "FAIL"
   },
-  "target": "TASK-017",
+  "target": null,
   "unresolved_markers": [
+    {
+      "line": 96,
+      "marker": "[MISSING: ...]",
+      "path": ".github/skills/register-new-app/SKILL.md"
+    },
+    {
+      "line": 127,
+      "marker": "[MISSING: ...]",
+      "path": ".github/skills/register-new-app/SKILL.md"
+    },
+    {
+      "line": 127,
+      "marker": "[UNKNOWN: ...]",
+      "path": ".github/skills/register-new-app/SKILL.md"
+    },
     {
       "line": 93,
       "marker": "[MISSING: production Aukro API username/password/API key values in the external secret backend; k8s env and secret refs are wired]",
@@ -127,16 +142,6 @@
       "path": "docs/21_execution_plans/EP-TASK-014-official-aukro-public-api-executor.md"
     },
     {
-      "line": 60,
-      "marker": "[MISSING: ...]",
-      "path": "AGENT_OPERATIONS.md"
-    },
-    {
-      "line": 60,
-      "marker": "[UNKNOWN: ...]",
-      "path": "AGENT_OPERATIONS.md"
-    },
-    {
       "line": 42,
       "marker": "[MISSING: current Aukro UI ownership and supported slots]",
       "path": "docs/business-process-control-plane/HOLIDAY_DISCOUNT_ADOPTION.md"
@@ -240,15 +245,143 @@
       "line": 182,
       "marker": "[UNKNOWN: ...]",
       "path": "docs/orchestrator/2026-07-02-related-products-order-affinity-plan.md"
+    },
+    {
+      "line": 20,
+      "marker": "[MISSING: channel-specific external marketplace bundle publication policies]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 54,
+      "marker": "[MISSING: approved external marketplace bundle publication contract]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 55,
+      "marker": "[MISSING: approved files]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 55,
+      "marker": "[MISSING: bundle reservation/order/payment contract]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 62,
+      "marker": "[MISSING: approved external marketplace bundle publication contract for catalog.bundle.v1]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 63,
+      "marker": "[MISSING: Warehouse bundle reservation and availability contract for a single external listing]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 64,
+      "marker": "[MISSING: Orders bundle create-order and component allocation contract for Aukro orders]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 65,
+      "marker": "[MISSING: Payments/totals/refund behavior for bundled external marketplace orders]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 66,
+      "marker": "[MISSING: Aukro shipping template/package policy for multi-component bundles]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 67,
+      "marker": "[MISSING: owner-approved live Aukro bundle test listing and cleanup plan]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-bundle-publication-policy.md"
+    },
+    {
+      "line": 35,
+      "marker": "[MISSING: Marketing marketplace replay URL path selection for aukro-service /internal/aukro/order-affinity/replay-candidates]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-order-affinity-replay-producer.md"
+    },
+    {
+      "line": 36,
+      "marker": "[MISSING: Marketing marketplace affinity source allowlist entry for aukro-service]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-order-affinity-replay-producer.md"
+    },
+    {
+      "line": 37,
+      "marker": "[MISSING: Marketing runtime token mapping for Aukro protected replay endpoint]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-order-affinity-replay-producer.md"
+    },
+    {
+      "line": 38,
+      "marker": "[MISSING: runtime deployment and Marketing pod dry-run evidence for Aukro replay endpoint]",
+      "path": "docs/orchestrator/2026-07-03-goal24-aukro-order-affinity-replay-producer.md"
+    },
+    {
+      "line": 13,
+      "marker": "[MISSING: ...]",
+      "path": "docs/orchestrator/2026-07-05-error-free-orders-lifecycle-handoff.md"
+    },
+    {
+      "line": 22,
+      "marker": "[MISSING: ...]",
+      "path": "docs/orchestrator/2026-07-05-runtime-gate-packet-handoff.md"
+    },
+    {
+      "line": 22,
+      "marker": "[UNKNOWN: ...]",
+      "path": "docs/orchestrator/2026-07-05-runtime-gate-packet-handoff.md"
+    },
+    {
+      "line": 36,
+      "marker": "[MISSING: approved live Aukro customer/admin bearer or browser session packet for row-level dashboard/admin smoke]",
+      "path": "docs/orchestrator/2026-07-05-runtime-gate-packet-handoff.md"
+    },
+    {
+      "line": 37,
+      "marker": "[MISSING: live proof that at least one Aukro row has a central Orders orderId linked to a current non-stale lifecycle stage]",
+      "path": "docs/orchestrator/2026-07-05-runtime-gate-packet-handoff.md"
+    },
+    {
+      "line": 38,
+      "marker": "[UNKNOWN: whether current production data contains Aukro orders with central lifecycle status available]",
+      "path": "docs/orchestrator/2026-07-05-runtime-gate-packet-handoff.md"
+    },
+    {
+      "line": 8,
+      "marker": "[MISSING: business-health Aukro channel readback goal impact]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
+    },
+    {
+      "line": 11,
+      "marker": "[MISSING: Aukro business-health channel readback task]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
+    },
+    {
+      "line": 62,
+      "marker": "[MISSING: approved live Aukro readback packet]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
+    },
+    {
+      "line": 63,
+      "marker": "[MISSING: target product/listing/account for Aukro channel readback proof]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
+    },
+    {
+      "line": 64,
+      "marker": "[MISSING: external Aukro provider policy for live readback cadence, rate limits, and account scope]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
+    },
+    {
+      "line": 65,
+      "marker": "[MISSING: approved reconciliation rule that maps Warehouse/Catalog availability to Aukro sellable quantity without external mutation side effects]",
+      "path": "docs/orchestrator/2026-07-06-aukro-business-health-handoff.md"
     }
   ],
   "validation_reports": {
-    "matching_reports": [
-      "docs/12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
-    ],
     "reports": [
       "docs/12_validation/VAL-AU2-orders-lifecycle-cabinet-admin-stats.md",
       "docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md",
+      "docs/12_validation/VAL-TASK-001-bootstrap-service.md",
       "docs/12_validation/VAL-TASK-001-ips-governance-baseline.md",
       "docs/12_validation/VAL-TASK-002-create-ai-commerce-roadmap.md",
       "docs/12_validation/VAL-TASK-003-aukro-compliance-policy.md",
@@ -268,6 +401,6 @@
       "docs/12_validation/VAL-TASK-017-catalog-goal25-product-quality-blockers.md"
     ],
     "status": "pass",
-    "target": "TASK-017"
+    "target": null
   }
 }
