@@ -36,6 +36,15 @@ spec:
                 secretKeyRef:
                   name: database-credentials
                   key: DB_PASSWORD
+            # Ingest credential for credential self-reports
+            # (SERVICE_CREDENTIAL_PROBER_PLAN.md Task A). This deployment maps secret
+            # keys one by one rather than with envFrom: secretRef, so adding the key
+            # to the ExternalSecret alone does NOT reach the container.
+            - name: NOTIFICATION_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aukro-service-secret
+                  key: NOTIFICATION_SERVICE_TOKEN
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
