@@ -1,8 +1,17 @@
 {
   "schema_version": "1.0",
   "repository": "aukro",
-  "generated_at": "2026-09-05T18:05:55Z",
+  "generated_at": "2026-09-05T18:06:20Z",
   "artifacts": [
+    {
+      "id": "GOAL-AUKRO-001",
+      "type": "goal",
+      "status": "active",
+      "title": "Bootstrap IPS onboarding for aukro",
+      "path": "TASKS.md",
+      "parent_ids": [],
+      "updated_at": "2026-09-05T18:06:20Z"
+    },
     {
       "id": "TASK-AUKRO-001",
       "type": "task",
