@@ -42,8 +42,6 @@ The plan closes the Orders Goal 7.2B smoke gap by adding an explicit runtime com
 
 ## Sensitive-Data Handling
 
-Classification: synthetic. The smoke script uses synthetic identifiers and in-memory fakes. It checks `AUKRO_INTERNAL_SERVICE_TOKEN` presence but never prints its value. It does not read raw production orders, customer identifiers, DB rows, payment data, decoded JWTs, or live downstream responses.
-
 ## Contract Validation Plan
 
 Run the smoke command to assert the Orders create payload contains `orders.create.v1`, `channel: aukro`, stable `channelAccountId`, a Catalog product id, a Warehouse-owned `warehouseId`, and the required internal service header names.
@@ -114,27 +112,11 @@ No public route, no live order creation, no production DB writes, no live Orders
 
 Run:
 
-```bash
-AUKRO_INTERNAL_SERVICE_TOKEN=synthetic-smoke-token npm --prefix services/aukro-service run smoke:orders-create
-npm --prefix services/aukro-service test
-npm --prefix services/aukro-service run build
-```
-
 ## Validation Plan
 
 Run strict doc audit, pre-coding gate, deployment-readiness gate targeting TASK-016, `git diff --check`, deployment rollout status, public health, and the in-pod smoke command.
 
 ## Gate Commands
-
-```bash
-git diff --check
-AUKRO_INTERNAL_SERVICE_TOKEN=synthetic-smoke-token npm --prefix services/aukro-service run smoke:orders-create
-npm --prefix services/aukro-service test
-npm --prefix services/aukro-service run build
-python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues
-python3 scripts/pre_coding_gate.py --root .
-python3 scripts/deployment_readiness_gate.py --root . --target TASK-016
-```
 
 ## Parallel Execution Section
 

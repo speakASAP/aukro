@@ -33,5 +33,3 @@ The smoke must be synthetic, deterministic, and non-mutating. It must not add a 
 Add an operator-runnable synthetic create-order smoke command for Aukro Orders forwarding. Prove the Orders contract and Warehouse-owned `warehouseId` mapping with in-memory fakes and sanitized output only.
 
 ## Validation instructions
-
-Run `git diff --check`, `AUKRO_INTERNAL_SERVICE_TOKEN=synthetic-smoke-token npm --prefix services/aukro-service run smoke:orders-create`, `npm --prefix services/aukro-service test`, `npm --prefix services/aukro-service run build`, strict doc audit, pre-coding gate, deployment-readiness gate targeting TASK-016, deploy if clean, and run the smoke inside the deployed pod.

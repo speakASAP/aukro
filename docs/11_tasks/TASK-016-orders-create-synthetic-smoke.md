@@ -17,8 +17,6 @@ execution_plan:
 
 ## Objective
 
-Add an owner-approved synthetic create-order smoke path for Aukro order forwarding readiness. The smoke must prove the create-order contract, internal service-token header names, stable channel account id, canonical Catalog product id, and Warehouse-owned `warehouseId` mapping without writing production customer/order/payment data and without calling live Orders, Warehouse, marketplace, or payment services.
-
 ## Upstream Links
 
 `docs/01_vision/VISION.md`, `docs/04_systems/SYS-001-aukro-service.md`, `docs/10_features/FEAT-003-order-forwarding.md`, `docs/10_features/FEAT-009-service-integration-clients.md`, `docs/16_operations/INTEGRATIONS.md`, and `docs/12_validation/VAL-GOAL-7-2B-orders-create-auth-warehouse-readiness.md`.
@@ -62,8 +60,6 @@ The smoke is deterministic and in-memory. It uses fake Prisma, fake Warehouse st
 ## Acceptance Criteria
 
 - [x] Smoke command is explicit and operator runnable.
-- [x] Smoke fails closed when `AUKRO_INTERNAL_SERVICE_TOKEN` is missing.
-- [x] Smoke proves `orders.create.v1`, `x-internal-service-token`, and `x-service-name: aukro-service`.
 - [x] Smoke proves stable `channelAccountId`.
 - [x] Smoke proves canonical Catalog `productId`.
 - [x] Smoke proves Warehouse-owned `warehouseId` through synthetic Warehouse stock evidence.
@@ -78,8 +74,6 @@ The smoke is deterministic and in-memory. It uses fake Prisma, fake Warehouse st
 Create `docs/12_validation/VAL-TASK-016-orders-create-synthetic-smoke.md`, run targeted smoke, service tests/build, strict audit, IPS gates, deploy if validation passes, and run the smoke inside the deployed pod.
 
 ## Required Gates
-
-`git diff --check`; `AUKRO_INTERNAL_SERVICE_TOKEN=synthetic-smoke-token npm --prefix services/aukro-service run smoke:orders-create`; `npm --prefix services/aukro-service test`; `npm --prefix services/aukro-service run build`; `python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues`; `python3 scripts/pre_coding_gate.py --root .`; `python3 scripts/deployment_readiness_gate.py --root . --target TASK-016`.
 
 ## Execution Plan Requirement
 

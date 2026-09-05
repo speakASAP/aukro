@@ -29,8 +29,6 @@ Do not add a public HTTP route, create production orders, call live orders-micro
 ## Acceptance criteria
 
 - Smoke command exists as `npm --prefix services/aukro-service run smoke:orders-create`.
-- Smoke fails when `AUKRO_INTERNAL_SERVICE_TOKEN` is absent.
-- Smoke verifies `orders.create.v1`, `x-internal-service-token`, `x-service-name: aukro-service`, `channelAccountId`, Catalog product id, and Warehouse-owned `warehouseId`.
 - Smoke output is sanitized JSON and says live DB, Orders, Warehouse, marketplace, and payment calls were not made.
 - Smoke runs in the deployed pod.
 

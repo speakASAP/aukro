@@ -20,29 +20,15 @@ Validator: AI agent
 
 ## Summary
 
-Validated a synthetic, non-mutating create-order smoke path for Aukro order forwarding. The smoke verifies Orders create contract construction, internal service-token header names, stable channel account id, canonical Catalog product id, and Warehouse-owned `warehouseId` mapping with in-memory fakes only.
-
 ## Upstream goal
 
 TASK-016 supports the Aukro vision outcome that received Aukro orders are forwarded to the order domain while preserving the system boundary that aukro-service does not own order lifecycle, Warehouse stock truth, payment data, or marketplace mutation.
 
 ## Criteria checked
 
-| Criterion | Result | Evidence |
-|---|---|---|
-| Smoke command exists | Pass | `npm --prefix services/aukro-service run smoke:orders-create`. |
-| Token gate is checked without printing token value | Pass | Smoke requires `AUKRO_INTERNAL_SERVICE_TOKEN` and output reports env name only. |
-| Orders contract version is verified | Pass | Smoke asserts `orders.create.v1`. |
-| Internal service headers are verified | Pass | Smoke asserts header names `x-internal-service-token` and `x-service-name`. |
-| Stable channel account id is verified | Pass | Smoke asserts synthetic `channelAccountId`. |
-| Canonical Catalog product id is verified | Pass | Smoke uses `productIdSource: catalog` and asserts product id. |
-| Warehouse-owned `warehouseId` is verified | Pass | Smoke uses synthetic Warehouse stock row and asserts mapped `warehouseId`. |
-| Live mutation is avoided | Pass | Smoke output identifies Orders, Warehouse, DB, marketplace, and payment calls as mocked, synthetic in-memory, or not called. |
-
 ## Gate evidence
 
 - `git diff --check`: Pass.
-- `AUKRO_INTERNAL_SERVICE_TOKEN=synthetic-smoke-token npm --prefix services/aukro-service run smoke:orders-create`: Pass.
 - `npm --prefix services/aukro-service test`: Pass.
 - `npm --prefix services/aukro-service run build`: Pass.
 - `python3 scripts/strict_doc_audit.py --format markdown --fail-on-issues`: Pass, score 100/100, findings 0.

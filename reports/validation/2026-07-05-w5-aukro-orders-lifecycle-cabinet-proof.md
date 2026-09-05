@@ -59,8 +59,6 @@ https://aukro.alfares.cz/aukro/ui/dashboard 403
 https://aukro.alfares.cz/aukro/ui/admin/services 403
 ```
 
-Runtime env presence was checked inside `deployment/aukro-service` with values redacted. Evidence: `ORDER_SERVICE_URL` present, `JWT_TOKEN` present, `AUKRO_INTERNAL_SERVICE_TOKEN` present; no raw token values printed.
-
 ## Exact Gaps
 
 - [MISSING: approved live Aukro customer/admin bearer or browser session packet for row-level dashboard/admin smoke]
